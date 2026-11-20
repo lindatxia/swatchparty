@@ -181,11 +181,17 @@ function card(person,index,draft,options) {
     const available=new Set([...verified,...linkedColors(display,savedOnly?[]:liveOptions).map(link=>link.color)]);
     const shades=[...new Set([...palettes[draft.palette],...available])].filter(color=>available.has(color));
     const select=!savedOnly && available.size;
-    const details='<span class="option-details"><span class="pick">'+html(display.style)+'</span>'+
-      (available.has(shade)?'<span class="option-shade"><i class="selected-color" style="--swatch:'+colors[shade]+'"></i>'+
-        '<span class="shade-name" title="'+html(shade)+'">'+html(shade)+'</span></span>':
-        '<span class="option-shade"><span class="shade-name">'+(available.size?'Choose a color':'Exact photo not added')+'</span></span>')+
-      '</span>';
+    const {link}=exactPreview(display,shade);
+    const name=link?'<a class="pick dress-link" href="'+html(link)+'" target="_blank" rel="noopener noreferrer" aria-label="'+
+      html(display.style+' in '+shade+' on Azazie')+'">'+html(display.style)+'</a>':
+      '<span class="pick">'+html(display.style)+'</span>';
+    const shadeLabel=available.has(shade)?'<span class="option-shade"><i class="selected-color" style="--swatch:'+colors[shade]+'"></i>'+
+      '<span class="shade-name" title="'+html(shade)+'">'+html(shade)+'</span></span>':
+      '<span class="option-shade"><span class="shade-name">'+(available.size?'Choose a color':'Exact photo not added')+'</span></span>';
+    const details='<div class="option-details">'+name+
+      (select?'<button type="button" class="option-select" id="pick-'+item.id+'" data-pick="'+item.id+
+        '" aria-label="'+html('Select '+display.style+(available.has(shade)?' in '+shade:''))+'" aria-pressed="'+chosen+'">'+shadeLabel+'</button>':shadeLabel)+
+      '</div>';
     const edit=savedOnly?'':'<button type="button" class="dress-edit" data-edit="'+item.id+
       '" aria-label="Edit '+html(display.style)+'" title="Edit dress">'+
       '<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">'+
@@ -193,8 +199,7 @@ function card(person,index,draft,options) {
     const handle=savedOnly||grouped.size<2?'':'<button type="button" class="dress-reorder" id="reorder-'+item.id+
       '" aria-label="Reorder '+html(display.style)+' with the up and down arrow keys" title="Drag to reorder">⠿</button>';
     return '<div class="option"'+(handle?' data-reorder="'+item.id+'"':'')+' aria-current="'+chosen+'"><div class="option-head">'+
-      (select?'<button type="button" class="option-select" id="pick-'+item.id+'" data-pick="'+item.id+
-        '" aria-pressed="'+chosen+'">'+details+'</button>':details)+'<div class="option-actions">'+handle+edit+'</div></div>'+
+      details+'<div class="option-actions">'+handle+edit+'</div></div>'+
       (shades.length?'<div class="swatches">'+shades.map(shade=>
         '<button class="swatch" style="--swatch:'+colors[shade]+'" title="'+html(shade)+'" aria-label="'+html(item.style+' in '+shade)+
         '" aria-pressed="'+(chosen&&look.color===shade)+'" data-pick="'+item.id+'" data-color="'+html(shade)+
