@@ -23,6 +23,13 @@ test('reads verified Azazie photos and honors query color',()=>{
   assert.equal(readProduct('https://azazie.com.example/products/azazie-velma'),null);
 });
 
+test('extracts the style and shade from a maxi dress listing',()=>{
+  const item=readProduct('https://www.azazie.com/products/isonelle-vintage-rose-maxi-dress');
+  assert.equal(item.style,'Isonelle');
+  assert.equal(item.color,'Vintage Rose');
+  assert.equal(item.photo,'');
+});
+
 test('shows only verified photos for the exact style, fabric, and shade',()=>{
   const chiffon=catalog.find(item=>item.variantGroup==='gabriela-chiffon' && item.color==='Dusty Rose');
   const satin=catalog.find(item=>item.style==='Gabriela' && item.color==='Desert Rose');

@@ -44,7 +44,7 @@ export function readProduct(input) {
   const [, , path, id]=parsed.pathname.split('/');
   const query=parsed.searchParams.get('color');
   const size=parsed.searchParams.get('size')?.toUpperCase() ?? '';
-  const prefix=path.replace(/^azazie-/,'').split(/-(?:a-line|mermaid|sheath|ball-gown|trumpet|bridesmaid-dress)(?:-|$)/)[0];
+  const prefix=path.replace(/^azazie-/,'').split(/-(?:a-line|mermaid|sheath|ball-gown|trumpet|bridesmaid-dress|maxi-dress|midi-dress|mini-dress)(?:-|$)/)[0];
   const pathColor=Object.keys(colors).sort((a,b)=>b.length-a.length).find(name=>prefix.endsWith('-'+slug(name)));
   const color=query ? Object.keys(colors).find(name=>slug(name)===slug(query)) : pathColor;
   const match=catalog.find(item=>id && new URL(item.url).pathname.split('/').at(-1)===id && item.color===color);
