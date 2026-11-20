@@ -427,19 +427,16 @@ colorForm.onsubmit=event=>{
     return;
   }
   const fromEdit=dressDialog.open && dressId===option.id;
-  if(variant.verified && fromEdit){
-    if(!Array.from(fields.color.options).some(item=>item.value===variant.color)){
-      get('color-message').textContent='Save your dress link changes before selecting this color.';
-      return;
-    }
-    fields.color.value=variant.color;
-    fields.color.dataset.previous=variant.color;
-    updateDressRetailer();
-  } else if(variant.verified){
+  if(variant.verified){
     const start=beginDraft();
     change(target=>{
       start(target);
-      if(target.options.some(item=>item.id===option.id))target.draft.looks[option.person]={option:option.id,color:variant.color};
+      const live=target.options.find(item=>item.id===option.id);
+      if(!live)return;
+      for(const item of target.options){
+        if(item.person===live.person && dressGroup(item)===dressGroup(live))item.lastColor=variant.color;
+      }
+      target.draft.looks[option.person]={option:option.id,color:variant.color};
     });
     showToast(variant.color+' selected.');
   } else {
@@ -448,11 +445,11 @@ colorForm.onsubmit=event=>{
       if(!live || !dressColorLink(live,variant.url))return;
       live.colorLinks=[...(live.colorLinks??[]).filter(item=>item.color!==variant.color),{color:variant.color,url:variant.url}];
     });
-    const message=variant.color+' added for photo verification.';
-    showToast(message);
+    showToast('Processing new color…');
   }
   colorDialog.close();
-  get('dress-color').focus({preventScroll:true});
+  if(fromEdit)dressDialog.close();
+  get('lineup').querySelector('[data-edit="'+CSS.escape(option.id)+'"]')?.focus({preventScroll:true});
 };
 const dressDialog=get('dress-dialog');
 const form=get('dress-form');
