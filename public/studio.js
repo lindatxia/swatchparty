@@ -13,6 +13,7 @@ function dressGroup(option){
   return styleKey?JSON.stringify([option.person,option.style,styleKey,option.size.trim().toUpperCase()]):option.id;
 }
 const snapshotDress=({lastColor,...dress})=>dress;
+let displayOrder=people.map((_,index)=>index);
 const images=new Map();
 const edits=[];
 let server, state, saving=false, failed=false, viewed=null, dressPerson, dressId;
@@ -235,7 +236,7 @@ function render(focus) {
   get('final-lineup').textContent=viewed===state.finalId?'Final lineup':'Mark final';
   get('delete-lineup').hidden=!viewed;
   get('plain').hidden=!draft.backdrop;
-  get('lineup').innerHTML=people.map((person,index)=>card(person,index,draft,options)).join('');
+  get('lineup').innerHTML=displayOrder.map(index=>card(people[index],index,draft,options)).join('');
   for(const panel of get('lineup').children)loadPanel(panel,draft.backdrop);
   if(focus){
     const control=get(focus);
@@ -283,15 +284,15 @@ async function refreshCatalog() {
     catalogTag=tag;
     if(JSON.stringify(catalog)===JSON.stringify(latest))return;
     const {draft,options}=visible();
-    const previous=people.map((person,index)=>card(person,index,draft,options));
+    const previous=displayOrder.map(index=>card(people[index],index,draft,options));
     catalog.splice(0,catalog.length,...latest);
-    people.forEach((person,index)=>{
-      const markup=card(person,index,draft,options);
-      if(markup===previous[index])return;
-      const prior=get('lineup').children[index];
+    displayOrder.forEach((index,position)=>{
+      const markup=card(people[index],index,draft,options);
+      if(markup===previous[position])return;
+      const prior=get('lineup').children[position];
       const focused=prior.contains(document.activeElement)?document.activeElement.id:'';
       prior.outerHTML=markup;
-      loadPanel(get('lineup').children[index],draft.backdrop);
+      loadPanel(get('lineup').children[position],draft.backdrop);
       if(focused)get(focused)?.focus({preventScroll:true});
     });
   } catch {
@@ -666,6 +667,17 @@ form.onsubmit=async event=>{
   } catch(error) {
     get('dress-message').textContent=error.message+' You can clear the photo field and save the dress.';
   } finally {submit.disabled=false;}
+};
+get('randomize-order').onclick=()=>{
+  const order=[...displayOrder];
+  for(let index=order.length-1;index>0;index--){
+    const swap=Math.floor(Math.random()*(index+1));
+    [order[index],order[swap]]=[order[swap],order[index]];
+  }
+  if(order.every((person,index)=>person===displayOrder[index]))order.push(order.shift());
+  displayOrder=order;
+  render();
+  get('more-actions').querySelector('summary').focus({preventScroll:true});
 };
 get('backdrop').onclick=()=>{
   get('more-actions').open=false;
