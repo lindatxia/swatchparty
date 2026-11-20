@@ -89,3 +89,19 @@ test('stores and serves images within the workspace',async()=>{
   assert.deepEqual(new Uint8Array(await result.arrayBuffer()),bytes);
   assert.equal((await request('GET',undefined,path,'wrong')).status,401);
 });
+
+test('adding a color persists the link without saving the lineup',async()=>{
+  const before=await (await request()).json();
+  const option=before.state.options.find(item=>item.style==='Velma');
+  const url=option.url+'?color=olive';
+  const added=await request('POST',{optionId:option.id,url},'?color');
+  assert.equal(added.status,200);
+  const after=await (await request()).json();
+  assert.equal(after.savedAt,before.savedAt);
+  assert.equal(after.version,before.version+1);
+  assert.deepEqual(after.state.draft,before.state.draft);
+  assert.deepEqual(after.state.saved,before.state.saved);
+  assert.deepEqual(after.state.options.find(item=>item.id===option.id).colorLinks,[{color:'Olive',url}]);
+  const repeated=await (await request('POST',{optionId:option.id,url},'?color')).json();
+  assert.equal(repeated.version,after.version);
+});

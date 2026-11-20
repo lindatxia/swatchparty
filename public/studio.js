@@ -91,14 +91,14 @@ function showStatus() {
   }
   get('save-current').classList.toggle('has-unsaved',dirty&&!saving);
   get('palette').disabled=saving;
-  get('save-current').disabled=saving;
-  get('save-lineup').disabled=saving;
+  get('save-current').disabled=saving||addingColor;
+  get('save-lineup').disabled=saving||addingColor;
   get('discard-lineup').disabled=saving||!dirty;
   if(dirty)window.addEventListener('beforeunload',warnUnsaved);
   else window.removeEventListener('beforeunload',warnUnsaved);
 }
 async function save(message='Lineup saved.') {
-  if(saving||!edits.length)return;
+  if(saving||addingColor||!edits.length)return;
   failed=false;
   saving=true;
   notice('');
@@ -438,7 +438,7 @@ get('lineup').onclick=event=>{
 const colorDialog=get('color-dialog');
 const colorForm=get('color-form');
 const colorField=colorForm.elements.url;
-let colorOptionId;
+let colorOptionId, addingColor=false;
 function openColor(option) {
   colorOptionId=option.id;
   colorForm.reset();
@@ -447,38 +447,41 @@ function openColor(option) {
   colorDialog.showModal();
 }
 get('cancel-color').onclick=()=>colorDialog.close();
-colorForm.onsubmit=event=>{
+colorForm.onsubmit=async event=>{
   event.preventDefault();
+  if(addingColor||saving)return;
   const option=state.options.find(item=>item.id===colorOptionId);
   const variant=option&&dressColorLink(option,colorField.value.trim());
+  const message=get('color-message');
   if(!variant){
-    get('color-message').textContent='Paste a link for this style and fabric in the new color.';
+    message.textContent='Paste a link for this style and fabric in the new color.';
     return;
   }
-  const fromEdit=dressDialog.open && dressId===option.id;
-  if(variant.verified){
-    const start=beginDraft();
-    change(target=>{
-      start(target);
-      const live=target.options.find(item=>item.id===option.id);
-      if(!live)return;
-      for(const item of target.options){
-        if(item.person===live.person && dressGroup(item)===dressGroup(live))item.lastColor=variant.color;
-      }
-      target.draft.looks[option.person]={option:option.id,color:variant.color};
-    });
-    showToast(variant.color+' selected.');
-  } else {
-    change(target=>{
-      const live=target.options.find(item=>item.id===option.id);
-      if(!live || !dressColorLink(live,variant.url))return;
-      live.colorLinks=[...(live.colorLinks??[]).filter(item=>item.color!==variant.color),{color:variant.color,url:variant.url}];
-    });
-    showToast('Processing new color…');
+  const submit=colorForm.querySelector('[type=submit]');
+  addingColor=true;
+  submit.disabled=true;
+  message.textContent='';
+  showStatus();
+  try {
+    const latest=await (await request('?color',{
+      method:'POST',headers:{'content-type':'application/json'},
+      body:JSON.stringify({optionId:option.id,url:variant.url})
+    })).json();
+    if(latest.version>=server.version)server=latest;
+    refreshState();
+    colorDialog.close();
+    if(dressDialog.open && dressId===option.id)dressDialog.close();
+    render();
+    get('lineup').querySelector('[data-edit="'+CSS.escape(option.id)+'"]')?.focus({preventScroll:true});
+    showToast(variant.verified?variant.color+' added.':'Processing new color…');
+  } catch(error) {
+    if(colorDialog.open)message.textContent=error.message;
+    else showToast(error.message);
+  } finally {
+    addingColor=false;
+    submit.disabled=false;
+    showStatus();
   }
-  colorDialog.close();
-  if(fromEdit)dressDialog.close();
-  get('lineup').querySelector('[data-edit="'+CSS.escape(option.id)+'"]')?.focus({preventScroll:true});
 };
 const dressDialog=get('dress-dialog');
 const form=get('dress-form');
@@ -624,7 +627,12 @@ form.onsubmit=async event=>{
       colorLinks:[...new Map((old?linkedColors(old,state.options):[]).filter(item=>
         dressColorLink({url:variant?.url??info.url},item.url)).map(item=>[item.color,item])).values()]};
     change(target=>{
-      target.options=target.options.some(item=>item.id===id)?target.options.map(item=>item.id===id?option:item):[...target.options,option];
+      const existing=target.options.find(item=>item.id===id);
+      if(existing){
+        const links=[...option.colorLinks,...(existing.colorLinks??[])].filter(item=>dressColorLink(option,item.url));
+        const updated={...option,colorLinks:[...new Map(links.map(item=>[item.color,item])).values()]};
+        target.options=target.options.map(item=>item.id===id?updated:item);
+      } else target.options.push(option);
       if((variant||option.colorLinks.some(item=>item.color===color)) && (!old || target.draft.looks[person]?.option===id))target.draft.looks[person]={option:id,color};
     });
     viewed=null;

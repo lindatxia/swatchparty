@@ -123,6 +123,26 @@ export async function handle(request) {
         return json({photo:'asset:'+key},201);
       } catch {return json({error:'Couldn’t import that image. Try uploading the photo.'},422);}
     }
+    if(url.searchParams.has('color') && request.method==='POST') {
+      let payload;
+      try {payload=JSON.parse(await boundedBytes(request.body,4096));}
+      catch {return json({error:'Invalid color link.'},400);}
+      const {optionId,url:link}=payload??{};
+      if(!validId(optionId)||!string(link,1200))return json({error:'Invalid color link.'},400);
+      for(let attempt=0;attempt<3;attempt++){
+        const current=await store.read(id);
+        const option=current.state.options.find(item=>item.id===optionId);
+        if(!option)return json({error:'Save this dress to the lineup before adding another color.'},404);
+        const variant=dressColorLink(option,link);
+        if(!variant)return json({error:'Paste a link for this style and fabric in the new color.'},400);
+        const links=option.colorLinks??[];
+        if(links.some(item=>item.color===variant.color && item.url===variant.url))return json(current);
+        option.colorLinks=[...links.filter(item=>item.color!==variant.color),{color:variant.color,url:variant.url}];
+        const result=await store.write(id,current.version,JSON.stringify(current.state),current.savedAt);
+        if(result)return json(result);
+      }
+      return json({error:'The workspace is busy. Try adding the color again.'},409);
+    }
     if(request.method==='GET')return json(await store.read(id));
     if(request.method==='PUT') {
       let payload;
