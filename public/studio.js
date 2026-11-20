@@ -17,7 +17,7 @@ const images=new Map();
 const edits=[];
 let server, state, saving=false, failed=false, viewed=null, dressPerson, dressId;
 let catalogTag=null, checkingCatalog=false;
-let toastTimer, editingSnapshot=null;
+let toastTimer, editingSnapshot=null, paletteEdit;
 
 function hideToast() {
   clearTimeout(toastTimer);
@@ -90,6 +90,7 @@ function showStatus() {
     if(time.textContent!==text)time.textContent=text;
   }
   get('save-current').classList.toggle('has-unsaved',dirty&&!saving);
+  get('palette').disabled=saving;
   get('save-current').disabled=saving;
   get('save-lineup').disabled=saving;
   get('discard-lineup').disabled=saving||!dirty;
@@ -307,8 +308,24 @@ function beginDraft() {
     });
   };
 }
+function discardEdits() {
+  viewed=editingSnapshot??viewed;
+  editingSnapshot=null;
+  edits.length=0;
+  paletteEdit=null;
+  failed=false;
+  notice('');
+  refreshState();
+  if(!state.saved.some(item=>item.id===viewed))viewed=null;
+}
 get('palette').onchange=event=>{
   const value=event.target.value;
+  const hasLineupEdits=edits.some(edit=>edit!==paletteEdit);
+  if(saving || hasLineupEdits && !confirm('Switch palettes and discard unsaved changes? Choose Cancel to stay here and save first.')){
+    render();
+    return;
+  }
+  if(edits.length)discardEdits();
   editingSnapshot=null;
   if(value.startsWith('lineup:')){
     viewed=value.slice(7);
@@ -317,7 +334,8 @@ get('palette').onchange=event=>{
   }
   viewed=null;
   if(state.draft.palette===value){render();return;}
-  change(target=>{target.draft.palette=value;});
+  paletteEdit=target=>{target.draft.palette=value;};
+  change(paletteEdit);
 };
 function moveDress(sourceId,targetId) {
   if(sourceId===targetId)return;
@@ -673,13 +691,7 @@ get('save-current').onclick=()=>{
 get('discard-lineup').onclick=()=>{
   if(saving||!edits.length)return;
   if(!confirm('Discard changes since your last save?'))return;
-  viewed=editingSnapshot??viewed;
-  editingSnapshot=null;
-  edits.length=0;
-  failed=false;
-  notice('');
-  refreshState();
-  if(!state.saved.some(item=>item.id===viewed))viewed=null;
+  discardEdits();
   render();
 };
 const toolbarMenus=[get('save-actions'),get('more-actions')];
