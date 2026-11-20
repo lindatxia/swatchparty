@@ -20,7 +20,7 @@ const validColorLinks=option=>option.colorLinks===undefined ||
     dressColorLink(option,item.url)?.color===item.color);
 const validOption = option => option && validId(option.id) && Number.isInteger(option.person) &&
   option.person>=0 && option.person<people.length && string(option.style,80) && option.style.trim() &&
-  isColor(option.color) && (option.sourceColor==='' || string(option.sourceColor,40)) &&
+  isColor(option.color) && (option.lastColor===undefined || isColor(option.lastColor)) && (option.sourceColor==='' || string(option.sourceColor,40)) &&
   isColor(option.urlColor) && string(option.size,24) && string(option.url,1200) && productURL(option.url) && isPhoto(option.photo) && validColorLinks(option);
 const validDraft = (draft,options) => draft && typeof draft.palette==='string' && own(palettes,draft.palette) && isBackdrop(draft.backdrop) &&
   Array.isArray(draft.looks) && draft.looks.length===people.length && draft.looks.every((look,index)=>

@@ -12,6 +12,7 @@ function dressGroup(option){
   const styleKey=readProduct(option.url)?.styleKey;
   return styleKey?JSON.stringify([option.person,option.style,styleKey,option.size.trim().toUpperCase()]):option.id;
 }
+const snapshotDress=({lastColor,...dress})=>dress;
 const images=new Map();
 const edits=[];
 let server, state, saving=false, failed=false, viewed=null, dressPerson, dressId;
@@ -136,22 +137,25 @@ function card(person,index,draft,options) {
   const cards=picks.map(item=>{
     const chosen=item.id===look?.option;
     const display=chosen?option:item;
-    const shade=chosen?look.color:item.color;
+    const shade=chosen?look.color:item.lastColor??item.color;
     const source=exactPreview(display,shade);
     const savedOnly=!liveOptions.some(live=>live.id===item.id);
     const verified=new Set(verifiedVariants(display).map(variant=>variant.color));
     const shades=[...new Set([...palettes[draft.palette],...verified])].filter(color=>verified.has(color));
     const pending=[...new Set([display,...liveOptions.filter(live=>dressGroup(live)===dressGroup(item))]
       .flatMap(entry=>(entry.colorLinks??[]).map(link=>link.color)).filter(color=>!verified.has(color)))];
-    const open=savedOnly?'<div class="option-head">':'<button type="button" class="option-head option-opener" data-edit="'+
-      item.id+'" aria-label="Edit '+html(display.style)+'">';
-    return '<div class="option" aria-current="'+chosen+'">'+open+
-      '<span class="option-details"><span class="pick">'+html(display.style)+'</span>'+
+    const select=!savedOnly && verified.size;
+    const details='<span class="option-details"><span class="pick">'+html(display.style)+'</span>'+
       (source.photo?'<span class="option-shade"><i class="selected-color" style="--swatch:'+colors[shade]+'"></i>'+
         '<span class="shade-name" title="'+html(shade)+'">'+html(shade)+'</span></span>':
         '<span class="option-shade"><span class="shade-name">'+(verified.size?'Choose a verified color':'Exact photo not added')+'</span></span>')+
-      '</span>'+
-      (savedOnly?'</div>':'<span class="option-chevron" aria-hidden="true"></span></button>')+(shades.length?'<div class="swatches">'+shades.map(shade=>
+      '</span>';
+    const menu=savedOnly?'':'<details class="dress-menu"><summary aria-label="More options for '+
+      html(display.style)+'">⋮</summary><div><button type="button" data-edit="'+item.id+'">Edit dress</button></div></details>';
+    return '<div class="option" aria-current="'+chosen+'"><div class="option-head">'+
+      (select?'<button type="button" class="option-select" id="pick-'+item.id+'" data-pick="'+item.id+
+        '" aria-pressed="'+chosen+'">'+details+'</button>':details)+menu+'</div>'+
+(shades.length?'<div class="swatches">'+shades.map(shade=>
         '<button class="swatch" style="--swatch:'+colors[shade]+'" title="'+html(shade)+'" aria-label="'+html(item.style+' in '+shade)+
         '" aria-pressed="'+(chosen&&look.color===shade)+'" data-pick="'+item.id+'" data-color="'+html(shade)+
         '" id="sw-'+item.id+'-'+Object.keys(colors).indexOf(shade)+'"'+(savedOnly?' disabled':'')+'></button>').join('')+
@@ -266,9 +270,9 @@ function beginDraft() {
       const selected=selectedOption(snapshot.options,look);
       if(!selected)return null;
       const live=selectedOption(target.options,look);
-      if(JSON.stringify(live)===JSON.stringify(selected))return look;
-      const {id,...details}=selected;
-      let copy=target.options.find(item=>JSON.stringify({...item,id})===JSON.stringify(selected));
+      if(live && JSON.stringify(snapshotDress(live))===JSON.stringify(snapshotDress(selected)))return look;
+      const {id,...details}=snapshotDress(selected);
+      let copy=target.options.find(item=>JSON.stringify({...snapshotDress(item),id})===JSON.stringify(snapshotDress(selected)));
       if(!copy){
         copy={id:copiedIds.get(id),...details};
         target.options.push(copy);
@@ -296,12 +300,16 @@ get('lineup').onclick=event=>{
 
   if(button.dataset.edit){
     const item=state.options.find(option=>option.id===button.dataset.edit);
+    const menu=button.closest('details');
+    menu.open=false;
+    menu.querySelector('summary').focus();
     if(item)openDress(item.person,item);
     return;
   }
   const option=state.options.find(item=>item.id===button.dataset.pick);
   if(!option)return;
-  const previous=visible().draft.looks[option.person]?.color;
+  const look=visible().draft.looks[option.person];
+  const previous=look?.option===option.id?look.color:option.lastColor;
   const variants=verifiedVariants(option);
   const color=[button.dataset.color,previous,option.color,variants[0]?.color]
     .find(shade=>variants.some(item=>item.color===shade));
@@ -309,7 +317,19 @@ get('lineup').onclick=event=>{
   const start=beginDraft();
   change(target=>{
     start(target);
-    if(target.options.some(item=>item.id===option.id))target.draft.looks[option.person]={option:option.id,color};
+    const live=target.options.find(item=>item.id===option.id);
+    if(!live)return;
+    const priorLook=target.draft.looks[option.person];
+    const prior=selectedOption(target.options,priorLook);
+    const nextGroup=dressGroup(live);
+    const priorGroup=prior&&dressGroup(prior);
+    for(const item of target.options){
+      if(item.person!==option.person)continue;
+      const group=dressGroup(item);
+      if(group===nextGroup)item.lastColor=color;
+      else if(group===priorGroup)item.lastColor=priorLook.color;
+    }
+    target.draft.looks[option.person]={option:option.id,color};
   },button.id);
 };
 const colorDialog=get('color-dialog');
@@ -470,7 +490,7 @@ form.onsubmit=async event=>{
   submit.disabled=true;
   get('dress-message').textContent='Preparing the dress…';
   try {
-    const option={id,person,style:fields.style.value.trim(),size:old?.size??'',color,
+    const option={id,person,style:fields.style.value.trim(),size:old?.size??'',color,lastColor:color,
       url:variant?.url??info.url,urlColor:variant?.color||info.color||color,photo,sourceColor:variant?.color??'',
       colorLinks:(old?.colorLinks??[]).filter(item=>dressColorLink({url:variant?.url??info.url},item.url))};
     change(target=>{
@@ -504,7 +524,7 @@ get('plain').onclick=()=>{
 };
 function snapshot(name,id) {
   const {draft,options}=visible();
-  return structuredClone({id,name,draft,options:options.filter(item=>draft.looks.some(look=>look?.option===item.id))});
+  return structuredClone({id,name,draft,options:options.filter(item=>draft.looks.some(look=>look?.option===item.id)).map(snapshotDress)});
 }
 get('save-lineup').onclick=()=>get('name-dialog').showModal();
 get('cancel-name').onclick=()=>get('name-dialog').close();
@@ -559,11 +579,13 @@ for(const menu of toolbarMenus){
   });
 }
 document.addEventListener('pointerdown',event=>{
-  for(const menu of toolbarMenus)if(menu.open && !menu.contains(event.target))menu.open=false;
+  for(const menu of [...toolbarMenus,...document.querySelectorAll('.dress-menu[open]')]){
+    if(menu.open && !menu.contains(event.target))menu.open=false;
+  }
 });
 document.addEventListener('keydown',event=>{
   if(event.key!=='Escape')return;
-  const menu=toolbarMenus.find(menu=>menu.open);
+  const menu=toolbarMenus.find(menu=>menu.open)??document.querySelector('.dress-menu[open]');
   if(menu){
     menu.open=false;
     menu.querySelector('summary').focus();
