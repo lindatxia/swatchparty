@@ -1,4 +1,4 @@
-import {colors,palettes,people,readProduct,exactPreview,verifiedVariants} from './catalog.js';
+import {colors,palettes,people,readProduct,exactPreview,verifiedVariants,dressColorLink} from './catalog.js';
 import {downloadPDF} from './export.js';
 
 const get=id=>document.getElementById(id);
@@ -134,6 +134,9 @@ function card(person,index,draft,options) {
     const savedOnly=!liveOptions.some(live=>live.id===item.id);
     const verified=new Set(verifiedVariants(display).map(variant=>variant.color));
     const shades=[...new Set([...palettes[draft.palette],...verified])].filter(color=>verified.has(color));
+    const pending=(display.colorLinks??[]).filter(item=>!verified.has(item.color));
+    const addColor=savedOnly?'':'<button type="button" class="text-button add-color" data-add-color="'+item.id+
+      '" id="add-color-'+item.id+'" aria-label="Add color to '+html(display.style)+'">+ Color</button>';
     return '<div class="option" aria-current="'+chosen+'"><div class="option-head">'+
       '<div class="option-details"><button class="text-button pick" data-pick="'+item.id+'" id="pick-'+item.id+
       '" aria-pressed="'+chosen+'"'+(savedOnly||!verifiedVariants(item).length?' disabled':'')+' title="'+html(display.style)+'">'+html(display.style)+'</button>'+
@@ -147,7 +150,9 @@ function card(person,index,draft,options) {
         '<button class="swatch" style="--swatch:'+colors[shade]+'" title="'+html(shade)+'" aria-label="'+html(item.style+' in '+shade)+
         '" aria-pressed="'+(chosen&&look.color===shade)+'" data-pick="'+item.id+'" data-color="'+html(shade)+
         '" id="sw-'+item.id+'-'+Object.keys(colors).indexOf(shade)+'"'+(savedOnly?' disabled':'')+'></button>').join('')+
-      '</div>':'<p class="pending-photo">No verified colors yet</p>')+'</div>';
+      '</div>':'<p class="pending-photo">No verified colors yet</p>')+
+      (pending.length?'<p class="pending-photo">Awaiting photo: '+html(pending.map(item=>item.color).join(', '))+'</p>':'')+
+      addColor+'</div>';
   }).join('');
   return '<article class="card">'+heading+'<div class="preview">'+label+
     '</div><div class="options">'+cards+'</div><button class="add" data-add="'+index+'">Add a dress from a link</button></article>';
@@ -233,6 +238,11 @@ get('lineup').onclick=event=>{
   const button=event.target.closest('button');
   if(!button)return;
   if(button.dataset.add!==undefined){openDress(Number(button.dataset.add));return;}
+  if(button.dataset.addColor){
+    const option=state.options.find(item=>item.id===button.dataset.addColor);
+    if(option)openColor(option);
+    return;
+  }
   if(button.dataset.edit){
     const item=state.options.find(option=>option.id===button.dataset.edit);
     if(item)openDress(item.person,item);
@@ -250,6 +260,44 @@ get('lineup').onclick=event=>{
     start(target);
     if(target.options.some(item=>item.id===option.id))target.draft.looks[option.person]={option:option.id,color};
   },button.id);
+};
+const colorDialog=get('color-dialog');
+const colorForm=get('color-form');
+const colorField=colorForm.elements.url;
+let colorOptionId;
+function openColor(option) {
+  colorOptionId=option.id;
+  colorForm.reset();
+  get('color-heading').textContent='Add a color for '+option.style;
+  get('color-message').textContent='';
+  colorDialog.showModal();
+}
+get('cancel-color').onclick=()=>colorDialog.close();
+colorForm.onsubmit=event=>{
+  event.preventDefault();
+  const option=state.options.find(item=>item.id===colorOptionId);
+  const variant=option&&dressColorLink(option,colorField.value.trim());
+  if(!variant){
+    get('color-message').textContent='Paste a link for this style and fabric in the new color.';
+    return;
+  }
+  if(variant.verified){
+    const start=beginDraft();
+    change(target=>{
+      start(target);
+      if(target.options.some(item=>item.id===option.id))target.draft.looks[option.person]={option:option.id,color:variant.color};
+    });
+    showToast(variant.color+' selected.');
+  } else {
+    change(target=>{
+      const live=target.options.find(item=>item.id===option.id);
+      if(!live || !dressColorLink(live,variant.url))return;
+      live.colorLinks=[...(live.colorLinks??[]).filter(item=>item.color!==variant.color),{color:variant.color,url:variant.url}];
+    });
+    showToast(variant.color+' added for photo verification.');
+  }
+  colorDialog.close();
+  get('add-color-'+option.id)?.focus({preventScroll:true});
 };
 const dressDialog=get('dress-dialog');
 const form=get('dress-form');
@@ -341,7 +389,8 @@ form.onsubmit=async event=>{
   get('dress-message').textContent='Preparing the dress…';
   try {
     const option={id,person,style:fields.style.value.trim(),size:fields.size.value.trim(),color,
-      url:variant?.url??info.url,urlColor:variant?.color||info.color||color,photo,sourceColor:variant?.color??''};
+      url:variant?.url??info.url,urlColor:variant?.color||info.color||color,photo,sourceColor:variant?.color??'',
+      colorLinks:(old?.colorLinks??[]).filter(item=>dressColorLink({url:variant?.url??info.url},item.url))};
     change(target=>{
       target.options=target.options.some(item=>item.id===id)?target.options.map(item=>item.id===id?option:item):[...target.options,option];
       if(variant && (!old || target.draft.looks[person]?.option===id))target.draft.looks[person]={option:id,color};

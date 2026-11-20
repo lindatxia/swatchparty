@@ -1,4 +1,4 @@
-export const people = ['Etreta','Hanna','Jacqueline','Michelle','Nicole'];
+export const people = ['Etreta','Hanna','Jackie','Michelle','Nicole'];
 export const colors = {
   'Sea Moss':'#839277','Dusty Sage':'#a2a88d',Juniper:'#536c54',Olive:'#667343',
   'Willow Green':'#bac1a0','Garden Sage':'#8e9872',Matcha:'#959b66',Pistachio:'#b5ba8c',
@@ -49,8 +49,9 @@ export function readProduct(input) {
   const color=query ? Object.keys(colors).find(name=>slug(name)===slug(query)) : pathColor;
   const match=catalog.find(item=>id && new URL(item.url).pathname.split('/').at(-1)===id && item.color===color);
   const stylePrefix=pathColor?prefix.slice(0,-slug(pathColor).length-1):prefix;
+  const styleKey=pathColor?stylePrefix+path.replace(/^azazie-/,'').slice(prefix.length):'';
   const style=match?.style ?? stylePrefix.split('-').filter(Boolean).map(word=>word[0].toUpperCase()+word.slice(1)).join(' ');
-  return {style,color:color??'',size,photo:match?.photo??'',sourceColor:match?.sourceColor??color??'',url:parsed.href};
+  return {style,styleKey,color:color??'',size,photo:match?.photo??'',sourceColor:match?.sourceColor??color??'',url:parsed.href};
 }
 export function verifiedVariants(option) {
   if(!option)return [];
@@ -59,6 +60,13 @@ export function verifiedVariants(option) {
   if(!base)return [];
   return catalog.filter(item=>item.photo && item.style===base.style &&
     (item===base || base.variantGroup && item.variantGroup===base.variantGroup));
+}
+export function dressColorLink(option,input) {
+  const base=readProduct(option.url);
+  const other=readProduct(input);
+  if(!base?.styleKey || base.styleKey!==other?.styleKey || !other.color)return null;
+  const verified=verifiedVariants(option).find(item=>item.color===other.color);
+  return {color:other.color,url:verified?.url??other.url,verified:!!verified};
 }
 export function exactPreview(option,color) {
   const exact=verifiedVariants(option).find(item=>item.color===color);

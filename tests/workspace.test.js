@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {catalog,exactPreview,readProduct,initialWorkspace} from '../public/catalog.js';
+import {catalog,dressColorLink,exactPreview,readProduct,initialWorkspace} from '../public/catalog.js';
 import {handle,validState} from '../server/handler.js';
 
 const key='local-integration-test-workspace-key';
@@ -32,6 +32,22 @@ test('shows only verified photos for the exact style, fabric, and shade',()=>{
   assert.equal(exactPreview({...chiffon,photo:'asset:sample',sourceColor:'Dusty Sage'},'Dusty Sage').photo,'');
 });
 
+test('adds links only for the same style and fabric',()=>{
+  const velma=catalog.find(item=>item.style==='Velma' && item.color==='Ganache');
+  const moss=catalog.find(item=>item.style==='Velma' && item.color==='Sea Moss');
+  const otherFabric=catalog.find(item=>item.style==='Gabriela' && item.color==='Desert Rose');
+  const chiffon=catalog.find(item=>item.style==='Gabriela' && item.color==='Dusty Rose');
+  assert.deepEqual(dressColorLink(velma,moss.url),{color:'Sea Moss',url:moss.url,verified:true});
+  assert.equal(dressColorLink(chiffon,otherFabric.url),null);
+  const unverified=velma.url+'?color=olive';
+  assert.deepEqual(dressColorLink(velma,unverified),{color:'Olive',url:unverified,verified:false});
+  const workspace=initialWorkspace();
+  const option=workspace.options.find(item=>item.style==='Velma');
+  option.colorLinks=[{color:'Olive',url:unverified}];
+  assert.equal(validState(workspace),true);
+  option.colorLinks.push({color:'Olive',url:unverified});
+  assert.equal(validState(workspace),false);
+});
 test('workspace gates reads and writes, persists submissions, and rejects stale edits',async()=>{
   assert.equal((await request('GET',undefined,'','wrong')).status,401);
   const original=await (await request()).json();

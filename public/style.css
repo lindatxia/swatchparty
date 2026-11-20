@@ -112,4 +112,5 @@ dialog .actions{justify-content:end}
   .toolbar-actions{margin-left:auto;justify-content:flex-end}
 }
 
+.add-color{min-height:32px;margin-top:5px;font-size:.85rem}
 .pending-photo{margin-top:5px;color:var(--muted);font-size:.86rem}

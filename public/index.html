@@ -63,6 +63,17 @@
       <div class="actions"><button id="cancel-dress" type="button">Cancel</button><button type="submit">Save dress</button></div>
     </form>
   </dialog>
+  <dialog id="color-dialog" aria-labelledby="color-heading">
+    <form id="color-form">
+      <h2 id="color-heading">Add a color</h2>
+      <label>Azazie link for the new color <input name="url" type="url" required maxlength="1200" placeholder="https://www.azazie.com/products/…"></label>
+      <p id="color-message" role="status"></p>
+      <div class="actions">
+        <button id="cancel-color" type="button">Cancel</button>
+        <button type="submit">Add color</button>
+      </div>
+    </form>
+  </dialog>
   <dialog id="name-dialog">
     <form id="name-form">
       <h2>Save lineup</h2>

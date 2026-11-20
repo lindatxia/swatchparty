@@ -1,5 +1,5 @@
 import {createHash,randomUUID,timingSafeEqual} from 'node:crypto';
-import {catalog,colors,palettes,people,productURL} from '../public/catalog.js';
+import {catalog,colors,palettes,people,productURL,dressColorLink} from '../public/catalog.js';
 import {openStore} from './store.js';
 
 const imageTypes = ['image/jpeg','image/png','image/webp'];
@@ -13,10 +13,15 @@ const validId = value => typeof value==='string' && idPattern.test(value);
 const isPhoto = value => value==='' || seedPhotos.has(value) || typeof value==='string' && assetPattern.test(value);
 const isBackdrop = value => value==='' || typeof value==='string' && assetPattern.test(value);
 const isColor = value => typeof value==='string' && own(colors,value);
+const validColorLinks=option=>option.colorLinks===undefined ||
+  Array.isArray(option.colorLinks) && option.colorLinks.length<=Object.keys(colors).length &&
+  new Set(option.colorLinks.map(item=>item?.color)).size===option.colorLinks.length &&
+  option.colorLinks.every(item=>item && isColor(item.color) && string(item.url,1200) &&
+    dressColorLink(option,item.url)?.color===item.color);
 const validOption = option => option && validId(option.id) && Number.isInteger(option.person) &&
   option.person>=0 && option.person<people.length && string(option.style,80) && option.style.trim() &&
   isColor(option.color) && (option.sourceColor==='' || string(option.sourceColor,40)) &&
-  isColor(option.urlColor) && string(option.size,24) && string(option.url,1200) && productURL(option.url) && isPhoto(option.photo);
+  isColor(option.urlColor) && string(option.size,24) && string(option.url,1200) && productURL(option.url) && isPhoto(option.photo) && validColorLinks(option);
 const validDraft = (draft,options) => draft && typeof draft.palette==='string' && own(palettes,draft.palette) && isBackdrop(draft.backdrop) &&
   Array.isArray(draft.looks) && draft.looks.length===people.length && draft.looks.every((look,index)=>
     look===null || look && isColor(look.color) && options.some(option=>option.id===look.option && option.person===index));
