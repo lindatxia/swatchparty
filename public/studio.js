@@ -150,11 +150,13 @@ function card(person,index,draft,options) {
         '<span class="shade-name" title="'+html(shade)+'">'+html(shade)+'</span></span>':
         '<span class="option-shade"><span class="shade-name">'+(verified.size?'Choose a verified color':'Exact photo not added')+'</span></span>')+
       '</span>';
-    const menu=savedOnly?'':'<details class="dress-menu"><summary aria-label="More options for '+
-      html(display.style)+'">⋮</summary><div><button type="button" data-edit="'+item.id+'">Edit dress</button></div></details>';
+    const edit=savedOnly?'':'<button type="button" class="dress-edit" data-edit="'+item.id+
+      '" aria-label="Edit '+html(display.style)+'" title="Edit dress">'+
+      '<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">'+
+      '<path d="m14 5 5 5M4 20l5-1L20 8a3.5 3.5 0 0 0-5-5L4 14z"/></svg></button>';
     return '<div class="option" aria-current="'+chosen+'"><div class="option-head">'+
       (select?'<button type="button" class="option-select" id="pick-'+item.id+'" data-pick="'+item.id+
-        '" aria-pressed="'+chosen+'">'+details+'</button>':details)+menu+'</div>'+
+        '" aria-pressed="'+chosen+'">'+details+'</button>':details)+edit+'</div>'+
 (shades.length?'<div class="swatches">'+shades.map(shade=>
         '<button class="swatch" style="--swatch:'+colors[shade]+'" title="'+html(shade)+'" aria-label="'+html(item.style+' in '+shade)+
         '" aria-pressed="'+(chosen&&look.color===shade)+'" data-pick="'+item.id+'" data-color="'+html(shade)+
@@ -300,9 +302,6 @@ get('lineup').onclick=event=>{
 
   if(button.dataset.edit){
     const item=state.options.find(option=>option.id===button.dataset.edit);
-    const menu=button.closest('details');
-    menu.open=false;
-    menu.querySelector('summary').focus();
     if(item)openDress(item.person,item);
     return;
   }
@@ -579,13 +578,13 @@ for(const menu of toolbarMenus){
   });
 }
 document.addEventListener('pointerdown',event=>{
-  for(const menu of [...toolbarMenus,...document.querySelectorAll('.dress-menu[open]')]){
+  for(const menu of toolbarMenus){
     if(menu.open && !menu.contains(event.target))menu.open=false;
   }
 });
 document.addEventListener('keydown',event=>{
   if(event.key!=='Escape')return;
-  const menu=toolbarMenus.find(menu=>menu.open)??document.querySelector('.dress-menu[open]');
+  const menu=toolbarMenus.find(menu=>menu.open);
   if(menu){
     menu.open=false;
     menu.querySelector('summary').focus();
