@@ -113,6 +113,8 @@ dialog .actions{justify-content:end}
 
 .split-save{display:flex;align-items:stretch}
 .split-save #save-current{border-radius:22px 0 0 22px;padding-inline:17px}
+.split-save #save-current.has-unsaved{background:#e5efdf;border-color:#c5d6bd}
+.split-save #save-current.has-unsaved:hover{background:#dbe9d3}
 .split-save summary{border-radius:0 22px 22px 0;border-inline-start:0}
 .save-chevron{width:8px;height:8px;border:solid currentColor;border-width:0 1.5px 1.5px 0;transform:translateY(-2px) rotate(45deg)}
 #save-actions .more-panel{width:max-content;max-width:calc(100vw - 72px)}

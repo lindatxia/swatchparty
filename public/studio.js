@@ -17,7 +17,7 @@ const images=new Map();
 const edits=[];
 let server, state, saving=false, failed=false, viewed=null, dressPerson, dressId;
 let catalogTag=null, checkingCatalog=false;
-let toastTimer, editingSnapshot=null, manualSave=false, draftCheckpoint;
+let toastTimer, editingSnapshot=null;
 
 function hideToast() {
   clearTimeout(toastTimer);
@@ -63,25 +63,52 @@ function refreshState() {
   state=structuredClone(server.state);
   for(const edit of edits)edit(state);
 }
-function showStatus() {
-  get('save-status').textContent=failed?'Couldn’t save':saving?'Saving…':'';
-  get('retry').hidden=!failed;
-  const last=server.savedAt && new Date(server.savedAt);
-  get('saved-check').hidden=!last||failed||saving;
-  if(last)get('saved-at').dateTime=server.savedAt;
-  const sameDay=last && new Date().toDateString()===last.toDateString();
-  get('saved-at').textContent=last?'Last saved at '+last.toLocaleString([],sameDay?
-    {hour:'numeric',minute:'2-digit'}:{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):'';
+function savedLabel(date,now) {
+  if(now-date<60_000)return 'Last saved moments ago';
+  const localDay=value=>Date.UTC(value.getFullYear(),value.getMonth(),value.getDate());
+  const days=(localDay(now)-localDay(date))/86_400_000;
+  if(days<=0)return 'Last saved today at '+date.toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});
+  return 'Last saved '+days+(days===1?' day ago':' days ago');
 }
-async function save() {
-  if(saving||failed||!edits.length)return;
+function warnUnsaved(event) {
+  event.preventDefault();
+  event.returnValue=true;
+}
+function showStatus() {
+  const dirty=edits.length>0;
+  const status=saving?'Saving...':failed?'Couldn’t save · Unsaved changes':dirty?'Unsaved changes':'';
+  const last=server.savedAt;
+  const time=get('saved-at');
+  const label=get('save-status');
+  if(label.textContent!==status)label.textContent=status;
+  get('retry').hidden=!failed;
+  time.parentElement.hidden=!!status||!last;
+  get('saved-check').hidden=!last||!!status;
+  if(last){
+    time.dateTime=last;
+    const text=savedLabel(new Date(last),new Date());
+    if(time.textContent!==text)time.textContent=text;
+  }
+  get('save-current').classList.toggle('has-unsaved',dirty&&!saving);
+  get('save-current').disabled=saving;
+  get('save-lineup').disabled=saving;
+  get('discard-lineup').disabled=saving||!dirty;
+  if(dirty)window.addEventListener('beforeunload',warnUnsaved);
+  else window.removeEventListener('beforeunload',warnUnsaved);
+}
+async function save(message='Lineup saved.') {
+  if(saving||!edits.length)return;
+  failed=false;
   saving=true;
+  notice('');
+  refreshState();
   showStatus();
   const count=edits.length;
   try {
     server=await (await request('',{method:'PUT',headers:{'content-type':'application/json'},body:JSON.stringify({version:server.version,state})})).json();
     edits.splice(0,count);
     refreshState();
+    showToast(message);
   } catch(error) {
     failed=true;
     if(error.current)server=error.current;
@@ -90,26 +117,13 @@ async function save() {
     saving=false;
     showStatus();
   }
-  if(!failed && edits.length)void save();
-  else if(!failed && manualSave){
-    manualSave=false;
-    draftCheckpoint=structuredClone(server.state.draft);
-    showToast('Lineup saved.');
-  }
 }
 function change(edit,focus) {
   edits.push(edit);
   refreshState();
   render(focus);
-  void save();
 }
-get('retry').onclick=()=>{
-  failed=false;
-  notice('');
-  refreshState();
-  render();
-  void save();
-};
+get('retry').onclick=()=>void save();
 async function imageURL(photo) {
   if(!photo || !photo.startsWith('asset:'))return photo;
   if(!images.has(photo)){
@@ -499,7 +513,7 @@ form.onsubmit=async event=>{
     viewed=null;
     render();
     get('dress-dialog').close();
-    showToast(variant?'Dress saved.':'Dress saved. Exact Azazie photo still needed.');
+    showToast(variant?'Dress updated.':'Dress updated. Exact Azazie photo still needed.');
   } catch(error) {
     get('dress-message').textContent=error.message+' You can clear the photo field and save the dress.';
   } finally {submit.disabled=false;}
@@ -530,46 +544,37 @@ get('cancel-name').onclick=()=>get('name-dialog').close();
 get('name-form').onsubmit=event=>{
   event.preventDefault();
   const field=event.currentTarget.elements.name;
-  if(!field.value.trim())return;
+  if(saving||!field.value.trim())return;
   const item=snapshot(field.value.trim(),crypto.randomUUID());
   viewed=item.id;
   editingSnapshot=null;
   change(target=>{target.saved.push(item);});
   get('name-dialog').close();
   event.currentTarget.reset();
-  showToast('New palette saved.');
+  void save('New palette saved.');
 };
 get('save-current').onclick=()=>{
-  manualSave=true;
+  if(saving||!edits.length)return;
   const previous=state.saved.find(item=>item.id===editingSnapshot);
-  if(failed){
-    failed=false;
-    notice('');
-    refreshState();
-  }
   if(previous){
     const replacement=snapshot(previous.name,previous.id);
     editingSnapshot=null;
     viewed=previous.id;
     change(target=>{target.saved=target.saved.map(item=>item.id===previous.id?replacement:item);});
-  } else if(!edits.length){
-    change(()=>{});
-  } else {
-    render();
-    void save();
   }
+  void save();
 };
 get('discard-lineup').onclick=()=>{
-  if(viewed){showToast('No lineup changes to discard.');return;}
-  if(!confirm('Discard lineup changes since your last explicit save?'))return;
-  const saved=state.saved.find(item=>item.id===editingSnapshot);
-  const restore=structuredClone(draftCheckpoint);
+  if(saving||!edits.length)return;
+  if(!confirm('Discard changes since your last save?'))return;
+  viewed=editingSnapshot??viewed;
   editingSnapshot=null;
-  viewed=saved?.id??viewed;
-  change(target=>{
-    target.draft={...restore,looks:restore.looks.map((look,index)=>
-      target.options.some(item=>item.id===look?.option && item.person===index)?look:null)};
-  });
+  edits.length=0;
+  failed=false;
+  notice('');
+  refreshState();
+  if(!state.saved.some(item=>item.id===viewed))viewed=null;
+  render();
 };
 const toolbarMenus=[get('save-actions'),get('more-actions')];
 for(const menu of toolbarMenus){
@@ -639,7 +644,6 @@ async function start() {
   if(!key){get('entry').textContent='Open your shared Swatch Party link to continue.';return;}
   try {
     server=await(await request()).json();
-    draftCheckpoint=structuredClone(server.state.draft);
     sessionStorage.setItem('swatch-workspace',key);
     const candidate=fragment.get('lineup');
     viewed=server.state.saved.some(item=>item.id===candidate)?candidate:null;
@@ -649,4 +653,6 @@ async function start() {
     render();
   } catch(error) {get('entry').textContent=error.message;}
 }
+setInterval(()=>{if(server&&!document.hidden)showStatus();},15_000);
+document.addEventListener('visibilitychange',()=>{if(server&&!document.hidden)showStatus();});
 void start();
