@@ -358,7 +358,6 @@ function openDress(person,option) {
   fields.style.value=option?.style??'';
   showDressColors(option&&readProduct(option.url),option?.color);
   fields.size.value=option?.size??'';
-  fields.size.required=!option?.id;
   get('edit-add-color').hidden=!option;
   form.querySelector('[data-delete]')?.remove();
   if(option) {
