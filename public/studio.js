@@ -85,7 +85,7 @@ function warnUnsaved(event) {
 }
 function showStatus() {
   const dirty=edits.length>0;
-  const status=saving?'Saving...':failed?'Couldn’t save · Unsaved changes':dirty?'Unsaved changes':'';
+  const status=saving?'Saving...':failed?(dirty?'Couldn’t save · Unsaved changes':'Couldn’t save'):dirty?'Unsaved changes':'';
   const last=server.savedAt;
   const time=get('saved-at');
   const label=get('save-status');
@@ -107,7 +107,7 @@ function showStatus() {
   else window.removeEventListener('beforeunload',warnUnsaved);
 }
 async function save(message='Lineup saved.') {
-  if(saving||addingColor||switchingPalette||!edits.length)return;
+  if(saving||addingColor||switchingPalette)return;
   failed=false;
   saving=true;
   notice('');
@@ -115,13 +115,14 @@ async function save(message='Lineup saved.') {
   showStatus();
   const count=edits.length;
   try {
+    const current=!count&&viewed?server.state:state;
     const previous=server.state.draft;
-    const paletteDrafts={...server.state.paletteDrafts,[previous.palette]:previous,[state.draft.palette]:state.draft};
+    const paletteDrafts={...server.state.paletteDrafts,[previous.palette]:previous,[current.draft.palette]:current.draft};
     for(const [palette,draft] of Object.entries(paletteDrafts)){
-      paletteDrafts[palette]=compatibleDraft(draft,state.options);
+      paletteDrafts[palette]=compatibleDraft(draft,current.options);
     }
     server=await (await request('',{method:'PUT',headers:{'content-type':'application/json'},
-      body:JSON.stringify({version:server.version,state:{...state,paletteDrafts}})})).json();
+      body:JSON.stringify({version:server.version,state:{...current,paletteDrafts}})})).json();
     edits.splice(0,count);
     refreshState();
     showToast(message);
@@ -704,7 +705,7 @@ get('name-form').onsubmit=event=>{
   void save('New palette saved.');
 };
 get('save-current').onclick=()=>{
-  if(saving||!edits.length)return;
+  if(saving||addingColor||switchingPalette)return;
   const previous=state.saved.find(item=>item.id===editingSnapshot);
   if(previous){
     const replacement=snapshot(previous.name,previous.id);
