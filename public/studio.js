@@ -1,4 +1,4 @@
-import {colors,palettes,people,readProduct,exactPreview,verifiedVariants,dressColorLink} from './catalog.js';
+import {catalog,colors,palettes,people,readProduct,exactPreview,verifiedVariants,dressColorLink} from './catalog.js';
 import {downloadPDF} from './export.js';
 
 const get=id=>document.getElementById(id);
@@ -15,7 +15,7 @@ function dressGroup(option){
 const images=new Map();
 const edits=[];
 let server, state, saving=false, failed=false, viewed=null, dressPerson, dressId;
-let renderVersion=0;
+let catalogTag=null, checkingCatalog=false;
 let toastTimer, editingSnapshot=null, manualSave=false, draftCheckpoint;
 
 function hideToast() {
@@ -172,7 +172,6 @@ function card(person,index,draft,options) {
 function render(focus) {
   const previousScroll=get(focus)?.closest('.swatches')?.scrollLeft;
   const content=visible();
-  const current=++renderVersion;
   const {draft,options}=content;
   const paletteDots={
     'All Mauve':['Dusty Rose','Vintage Mauve','Amethyst','Chocolate Plum'],
@@ -194,15 +193,7 @@ function render(focus) {
   get('delete-lineup').hidden=!viewed;
   get('plain').hidden=!draft.backdrop;
   get('lineup').innerHTML=people.map((person,index)=>card(person,index,draft,options)).join('');
-  for(const img of get('lineup').querySelectorAll('img[data-photo]')) {
-    const missing=()=>{const label=document.createElement('span');label.className='missing';label.textContent='Photo unavailable';img.replaceWith(label);};
-    img.onerror=missing;
-    imageURL(img.dataset.photo).then(src=>{if(current===renderVersion)img.src=src;}).catch(missing);
-  }
-  if(draft.backdrop) imageURL(draft.backdrop).then(src=>{
-    if(current!==renderVersion)return;
-    for(const panel of get('lineup').querySelectorAll('.preview'))panel.style.backgroundImage='url("'+src+'")';
-  }).catch(()=>notice('The backdrop could not be loaded.'));
+  for(const panel of get('lineup').children)loadPanel(panel,draft.backdrop);
   if(focus){
     const control=get(focus);
     const swatches=control?.closest('.swatches');
@@ -211,6 +202,58 @@ function render(focus) {
   }
   showStatus();
 }
+function loadPanel(cardElement,backdrop) {
+  const panel=cardElement.querySelector('.preview');
+  const img=panel.querySelector('img[data-photo]');
+  if(img){
+    const missing=()=>{
+      const label=document.createElement('span');
+      label.className='missing';
+      label.textContent='Photo unavailable';
+      img.replaceWith(label);
+    };
+    img.onerror=missing;
+    imageURL(img.dataset.photo).then(src=>{if(img.isConnected)img.src=src;}).catch(missing);
+  }
+  if(backdrop)imageURL(backdrop).then(src=>{
+    if(panel.isConnected)panel.style.backgroundImage='url("'+src+'")';
+  }).catch(()=>{if(panel.isConnected)notice('The backdrop could not be loaded.');});
+}
+async function refreshCatalog() {
+  if(!state || checkingCatalog || document.hidden || document.querySelector('dialog[open]'))return;
+  checkingCatalog=true;
+  try {
+    const url=new URL('./catalog.js',import.meta.url);
+    const response=await fetch(url,{method:'HEAD',cache:'no-store'});
+    if(!response.ok)return;
+    const tag=response.headers.get('etag')??response.headers.get('last-modified')??String(Date.now());
+    if(tag===catalogTag)return;
+    url.searchParams.set('revision',tag);
+    const {catalog:latest}=await import(url.href);
+    if(document.querySelector('dialog[open]'))return;
+    catalogTag=tag;
+    if(JSON.stringify(catalog)===JSON.stringify(latest))return;
+    const {draft,options}=visible();
+    const previous=people.map((person,index)=>card(person,index,draft,options));
+    catalog.splice(0,catalog.length,...latest);
+    people.forEach((person,index)=>{
+      const markup=card(person,index,draft,options);
+      if(markup===previous[index])return;
+      const prior=get('lineup').children[index];
+      const focused=prior.contains(document.activeElement)?document.activeElement.id:'';
+      prior.outerHTML=markup;
+      loadPanel(get('lineup').children[index],draft.backdrop);
+      if(focused)get(focused)?.focus({preventScroll:true});
+    });
+  } catch {
+    // A transient deployment or network error can be retried on the next check.
+  } finally {
+    checkingCatalog=false;
+  }
+}
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)void refreshCatalog();});
+window.addEventListener('focus',()=>void refreshCatalog());
+setInterval(refreshCatalog,15000);
 function beginDraft() {
   const snapshot=state.saved.find(item=>item.id===viewed);
   if(snapshot)editingSnapshot=snapshot.id;
