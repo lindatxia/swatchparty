@@ -349,6 +349,7 @@ colorForm.onsubmit=event=>{
       return;
     }
     fields.color.value=variant.color;
+    fields.color.dataset.previous=variant.color;
   } else if(variant.verified){
     const start=beginDraft();
     change(target=>{
@@ -366,7 +367,7 @@ colorForm.onsubmit=event=>{
     showToast(message);
   }
   colorDialog.close();
-  get(fromEdit?'edit-add-color':'add-color-'+option.id)?.focus({preventScroll:true});
+  get(fromEdit?'dress-color':'add-color-'+option.id)?.focus({preventScroll:true});
 };
 const dressDialog=get('dress-dialog');
 const form=get('dress-form');
@@ -385,16 +386,24 @@ for(const dialog of document.querySelectorAll('dialog')){
   });
 }
 const fields=form.elements;
-get('edit-add-color').onclick=()=>{
+const addColorValue='__add_color__';
+fields.color.addEventListener('change',()=>{
+  if(fields.color.value!==addColorValue){
+    fields.color.dataset.previous=fields.color.value;
+    return;
+  }
+  fields.color.value=fields.color.dataset.previous??'';
   const option=state.options.find(item=>item.id===dressId);
   if(option)openColor(option);
-};
+});
 function showDressColors(info,preferred) {
   const variants=verifiedVariants(info);
   const known=variants.map(item=>item.color);
   const allowed=known.length?known:info?.color?[info.color]:[];
   const selected=allowed.includes(preferred)?preferred:allowed[0]??'';
-  fields.color.innerHTML=selectOptions([['','Select a color'],...allowed.map(shade=>[shade,shade])],selected);
+  const actions=dressId?[[addColorValue,'Add another color…']]:[];
+  fields.color.innerHTML=selectOptions([['','Select a color'],...allowed.map(shade=>[shade,shade]),...actions],selected);
+  fields.color.dataset.previous=selected;
 }
 function openDress(person,option) {
   dressPerson=person;
@@ -406,7 +415,6 @@ function openDress(person,option) {
   fields.style.value=option?.style??'';
   showDressColors(option&&readProduct(option.url),option?.color);
   fields.size.value=option?.size??'';
-  get('edit-add-color').hidden=!option;
   form.querySelector('[data-delete]')?.remove();
   if(option) {
     const remove=document.createElement('button');

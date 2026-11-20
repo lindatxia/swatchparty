@@ -94,8 +94,6 @@ dialog form{display:grid;gap:12px}
 dialog label{display:grid;gap:4px}
 dialog input,dialog select{width:100%;min-width:0;padding:7px;border:1px solid var(--line);border-radius:11px;background:var(--page)}
 .dress-color-field{display:grid;gap:4px;min-width:0}
-.dress-color-heading{display:flex;justify-content:space-between;align-items:center;gap:4px}
-.dress-color-heading .text-button{min-height:0;padding:0 2px;font-size:.85rem;white-space:nowrap}
 .form-row{display:grid;grid-template-columns:1.2fr 1fr .65fr;gap:8px}
 dialog .actions{justify-content:end}
 #dress-form [data-delete]{margin-inline-end:auto}
