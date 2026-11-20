@@ -1,0 +1,136 @@
+import {createHash,randomUUID,timingSafeEqual} from 'node:crypto';
+import {catalog,colors,palettes,people,productURL} from '../public/catalog.js';
+import {openStore} from './store.js';
+
+const imageTypes = ['image/jpeg','image/png','image/webp'];
+const imageLimit = 3_000_000;
+const seedPhotos = new Set([...catalog.map(item=>item.photo),'/jackie.jpg','/hanna.jpg','/mona.jpg','/michelle.jpg','/gabriela-satin.jpg','/nicole.jpg']);
+const assetPattern = /^asset:[a-f0-9-]{36}$/;
+const own = (object,key) => Object.hasOwn(object,key);
+const string = (value,max) => typeof value==='string' && value.length<=max;
+const idPattern = /^[a-zA-Z0-9-]{1,64}$/;
+const validId = value => typeof value==='string' && idPattern.test(value);
+const isPhoto = value => value==='' || seedPhotos.has(value) || typeof value==='string' && assetPattern.test(value);
+const isBackdrop = value => value==='' || typeof value==='string' && assetPattern.test(value);
+const isColor = value => typeof value==='string' && own(colors,value);
+const validOption = option => option && validId(option.id) && Number.isInteger(option.person) &&
+  option.person>=0 && option.person<people.length && string(option.style,80) && option.style.trim() &&
+  isColor(option.color) && (option.sourceColor==='' || string(option.sourceColor,40)) &&
+  isColor(option.urlColor) && string(option.size,24) && string(option.url,1200) && productURL(option.url) && isPhoto(option.photo);
+const validDraft = (draft,options) => draft && typeof draft.palette==='string' && own(palettes,draft.palette) && isBackdrop(draft.backdrop) &&
+  Array.isArray(draft.looks) && draft.looks.length===people.length && draft.looks.every((look,index)=>
+    look===null || look && isColor(look.color) && options.some(option=>option.id===look.option && option.person===index));
+const validOptions = (options,limit) => Array.isArray(options) && options.length<=limit && options.every(validOption) &&
+  new Set(options.map(item=>item.id)).size===options.length;
+export function validState(state) {
+  return !!(state && validOptions(state.options,100) && validDraft(state.draft,state.options) &&
+    Array.isArray(state.saved) && state.saved.length<=50 && state.saved.every(item=>
+      item && validId(item.id) && string(item.name,80) && item.name.trim() &&
+      validOptions(item.options,people.length) && validDraft(item.draft,item.options)) &&
+    new Set(state.saved.map(item=>item.id)).size===state.saved.length &&
+    (state.finalId===null || state.saved.some(item=>item.id===state.finalId)));
+}
+const json = (data,status=200) => Response.json(data,{status,headers:{'Cache-Control':'no-store'}});
+const digest = value => createHash('sha256').update(value).digest();
+let database;
+async function boundedBytes(body,limit) {
+  if(!body)throw new Error('Missing request body.');
+  const chunks=[];
+  let size=0;
+  for await(const chunk of body) {
+    size+=chunk.byteLength;
+    if(size>limit)throw new Error('The upload is too large.');
+    chunks.push(chunk);
+  }
+  return Buffer.concat(chunks);
+}
+function imageMime(bytes) {
+  if(bytes.subarray(0,3).equals(Buffer.from([255,216,255])))return 'image/jpeg';
+  if(bytes.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10])))return 'image/png';
+  if(bytes.toString('ascii',0,4)==='RIFF' && bytes.toString('ascii',8,12)==='WEBP')return 'image/webp';
+  return '';
+}
+function photoURL(input) {
+  try {
+    const link=new URL(input);
+    if(link.protocol==='https:' && /^cdn-\d+\.azazie\.com$/.test(link.hostname) && !link.port &&
+       !link.username && !link.password && /^\/upimg\/[a-zA-Z0-9/._-]+$/.test(link.pathname))return link;
+  } catch {}
+  return null;
+}
+async function importImage(input) {
+  let link=photoURL(input.url);
+  if(input.product===true) {
+    const product=productURL(input.url);
+    if(!product || !string(input.color,40) || !string(input.style,80))return null;
+    const page=await fetch(product,{redirect:'error',signal:AbortSignal.timeout(5000)});
+    if(!page.ok)return null;
+    const markup=(await boundedBytes(page.body,2_000_000)).toString('utf8');
+    const tags=markup.match(/<meta\b[^>]*>/gi)??[];
+    const meta=name=>{
+      const tag=tags.find(tag=>new RegExp('(?:property|name)=["\']'+name+'["\']','i').test(tag));
+      return tag?.match(/content=["']([^"']+)["']/i)?.[1]??'';
+    };
+    const normalize=value=>value.toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
+    const title=' '+normalize(meta('og:title')+' '+meta('og:description'))+' ';
+    if(!title.includes(' '+normalize(input.style)+' ') || !title.includes(' '+normalize(input.color)+' '))return null;
+    link=photoURL(meta('og:image').replaceAll('&amp;','&'));
+  }
+  if(!link)return null;
+  const response=await fetch(link,{redirect:'error',signal:AbortSignal.timeout(8000)});
+  if(!response.ok)return null;
+  const bytes=await boundedBytes(response.body,imageLimit);
+  const mime=imageMime(bytes);
+  return mime?{bytes,mime}:null;
+}
+export async function handle(request) {
+  const configured=process.env.SWATCH_WORKSPACE_KEY;
+  if(!configured || configured.length<24)return json({error:'Set SWATCH_WORKSPACE_KEY on the server.'},503);
+  const supplied=request.headers.get('x-workspace-key') ?? '';
+  const url=new URL(request.url);
+  if(!timingSafeEqual(digest(supplied),digest(configured)))return json({error:'Open your shared workspace link to continue.'},401);
+  const id=digest(configured).toString('hex');
+  try {
+    database??=openStore().catch(error=>{database=undefined;throw error;});
+    const store=await database;
+    if(url.searchParams.has('asset') && request.method==='GET') {
+      const key=url.searchParams.get('asset');
+      const asset=validId(key) && await store.asset(id,key);
+      return asset ? new Response(asset.bytes,{headers:{'Content-Type':asset.mime,'Cache-Control':'private, max-age=3600','X-Content-Type-Options':'nosniff'}}) : json({error:'Image missing.'},404);
+    }
+    if(url.searchParams.has('upload') && request.method==='POST') {
+      try {
+        const bytes=await boundedBytes(request.body,imageLimit);
+        const mime=imageMime(bytes);
+        if(!imageTypes.includes(mime))return json({error:'Use a JPEG, PNG, or WebP image.'},400);
+        const key=randomUUID();
+        await store.put(id,key,mime,bytes);
+        return json({photo:'asset:'+key},201);
+      } catch(error) {return json({error:error.message},400);}
+    }
+    if(url.searchParams.has('import') && request.method==='POST') {
+      try {
+        const input=JSON.parse(await boundedBytes(request.body,4096));
+        const image=await importImage(input);
+        if(!image)return json({error:'Couldn’t verify the catalog photo.'},422);
+        const key=randomUUID();
+        await store.put(id,key,image.mime,image.bytes);
+        return json({photo:'asset:'+key},201);
+      } catch {return json({error:'Couldn’t import that image. Try uploading the photo.'},422);}
+    }
+    if(request.method==='GET')return json(await store.read(id));
+    if(request.method==='PUT') {
+      let payload;
+      try {payload=JSON.parse(await boundedBytes(request.body,512_000));}
+      catch {return json({error:'Invalid or oversized workspace update.'},400);}
+      const {version,state}=payload??{};
+      if(!Number.isInteger(version) || version<0 || !validState(state))return json({error:'Check the lineup and dress details.'},400);
+      const result=await store.write(id,version,JSON.stringify(state),new Date().toISOString());
+      return result ? json(result) : json({error:'The workspace changed on another device.',current:await store.read(id)},409);
+    }
+    return json({error:'Method unavailable.'},405);
+  } catch(error) {
+    console.error('Workspace storage error',error?.code ?? error?.name);
+    return json({error:'The workspace is temporarily unavailable.'},503);
+  }
+}
