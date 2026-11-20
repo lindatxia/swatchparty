@@ -138,22 +138,22 @@ function card(person,index,draft,options) {
     const display=chosen?option:item;
     const shade=chosen?look.color:item.color;
     const source=exactPreview(display,shade);
-    const linkLabel='View on Azazie';
-    const link=source.link?'<a class="retailer-link" href="'+html(source.link)+
-      '" target="_blank" rel="noopener noreferrer" aria-label="'+linkLabel+'" title="'+linkLabel+'"><span aria-hidden="true">↗</span></a>':'';
+    const link=source.link?'<a class="pick dress-link" href="'+html(source.link)+
+      '" target="_blank" rel="noopener noreferrer" title="'+html(display.style+' in '+shade+' on Azazie')+
+      '"><span aria-hidden="true">🔗</span> '+html(display.style)+'</a>':'';
     const savedOnly=!liveOptions.some(live=>live.id===item.id);
     const verified=new Set(verifiedVariants(display).map(variant=>variant.color));
     const shades=[...new Set([...palettes[draft.palette],...verified])].filter(color=>verified.has(color));
     const pending=[...new Set([display,...liveOptions.filter(live=>dressGroup(live)===dressGroup(item))]
       .flatMap(entry=>(entry.colorLinks??[]).map(link=>link.color)).filter(color=>!verified.has(color)))];
     return '<div class="option" aria-current="'+chosen+'"><div class="option-head">'+
-      '<div class="option-details"><button class="text-button pick" data-pick="'+item.id+'" id="pick-'+item.id+
-      '" aria-pressed="'+chosen+'"'+(savedOnly||!verifiedVariants(item).length?' disabled':'')+' title="'+html(display.style)+'">'+html(display.style)+'</button>'+
+      '<div class="option-details">'+(link||'<button class="text-button pick" data-pick="'+item.id+'" id="pick-'+item.id+
+      '" aria-pressed="'+chosen+'"'+(savedOnly||!verifiedVariants(item).length?' disabled':'')+' title="'+html(display.style)+'">'+html(display.style)+'</button>')+
       (source.photo?'<span class="option-shade"><i class="selected-color" style="--swatch:'+colors[shade]+'"></i>'+
         '<span class="shade-name" title="'+html(shade)+'">'+html(shade)+'</span></span>':
         '<span class="option-shade"><span class="shade-name">'+(verified.size?'Choose a verified color':'Exact photo not added')+'</span></span>')+
       (display.size?'<span class="size">'+html(display.size)+'</span>':'')+'</div>'+
-      '<div class="option-actions">'+link+
+      '<div class="option-actions">'+
       (savedOnly?'':'<button class="edit-option" data-edit="'+item.id+'" aria-label="Edit '+html(item.style)+'">Edit</button>')+
       '</div></div>'+(shades.length?'<div class="swatches">'+shades.map(shade=>
         '<button class="swatch" style="--swatch:'+colors[shade]+'" title="'+html(shade)+'" aria-label="'+html(item.style+' in '+shade)+
