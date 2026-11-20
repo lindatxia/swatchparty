@@ -122,3 +122,24 @@ dialog .actions{justify-content:end}
 .dress-color-field{position:relative}
 #dress-color{appearance:none;padding-inline-end:32px}
 .dress-color-field::after{content:"";position:absolute;inset-inline-end:14px;bottom:14px;width:7px;height:7px;border:solid var(--muted);border-width:0 1.5px 1.5px 0;transform:rotate(45deg);pointer-events:none}
+
+@supports (appearance:base-select) and selector(::picker(select)){
+  #dress-color,#dress-color::picker(select){appearance:base-select}
+  #dress-color{min-width:0}
+  #dress-color::picker-icon{display:none}
+  #dress-color::picker(select){
+    margin-block:6px;
+    padding:4px;
+    border:1px solid var(--line);
+    border-radius:14px;
+    background:var(--page);
+    color:var(--ink);
+    font:inherit;
+    box-shadow:0 6px 20px #3418281a;
+  }
+  #dress-color option{gap:8px;padding:9px 10px;border-radius:9px}
+  #dress-color option:checked{background:var(--soft)}
+  #dress-color option:hover,#dress-color option:focus-visible{background:var(--soft);color:var(--ink)}
+  #dress-color option::checkmark{content:"";width:1em;flex:none;color:var(--ink)}
+  #dress-color option:checked::checkmark{content:"✓"}
+}
