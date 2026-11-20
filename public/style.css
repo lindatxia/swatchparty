@@ -117,3 +117,10 @@ dialog .actions{justify-content:end}
 
 .add-color{min-height:32px;margin-top:5px;font-size:.85rem}
 .pending-photo{margin-top:5px;color:var(--muted);font-size:.86rem}
+
+.split-save{display:flex;align-items:stretch}
+.split-save #save-current{border-radius:22px 0 0 22px;padding-inline:17px}
+.split-save summary{border-radius:0 22px 22px 0;border-inline-start:0}
+.save-chevron{width:8px;height:8px;border:solid currentColor;border-width:0 1.5px 1.5px 0;transform:translateY(-2px) rotate(45deg)}
+#save-actions .more-panel{width:max-content;max-width:calc(100vw - 72px)}
+#save-actions .more-panel span{display:inline-block;width:1.4em;text-align:center;color:var(--muted)}

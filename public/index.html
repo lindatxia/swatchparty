@@ -27,8 +27,16 @@
           </div>
         </div>
         <div class="actions toolbar-actions">
-          <button id="save-current" type="button">Save</button>
-          <button id="save-lineup" type="button">Save as</button>
+          <div class="split-save">
+            <button id="save-current" type="button">Save</button>
+            <details id="save-actions" class="more-actions">
+              <summary aria-label="Save options" title="Save options"><span class="save-chevron" aria-hidden="true"></span></summary>
+              <div class="more-panel">
+                <button id="save-lineup" type="button"><span aria-hidden="true">⊕</span> Save as new palette</button>
+                <button id="discard-lineup" type="button"><span aria-hidden="true">↶</span> Discard changes</button>
+              </div>
+            </details>
+          </div>
           <details id="more-actions" class="more-actions">
             <summary aria-label="More actions" title="More actions"><span aria-hidden="true">⋮</span></summary>
             <div class="more-panel">

@@ -12,7 +12,7 @@ const images=new Map();
 const edits=[];
 let server, state, saving=false, failed=false, viewed=null, dressPerson, dressId;
 let renderVersion=0;
-let toastTimer, editingSnapshot=null, manualSave=false;
+let toastTimer, editingSnapshot=null, manualSave=false, draftCheckpoint;
 
 function hideToast() {
   clearTimeout(toastTimer);
@@ -88,6 +88,7 @@ async function save() {
   if(!failed && edits.length)void save();
   else if(!failed && manualSave){
     manualSave=false;
+    draftCheckpoint=structuredClone(server.state.draft);
     showToast('Lineup saved.');
   }
 }
@@ -310,20 +311,20 @@ colorForm.onsubmit=event=>{
 };
 const dressDialog=get('dress-dialog');
 const form=get('dress-form');
-function onDressBackdrop(event) {
-  if(event.target!==dressDialog)return false;
-  const bounds=dressDialog.getBoundingClientRect();
-  return event.clientX<bounds.left || event.clientX>=bounds.right ||
-    event.clientY<bounds.top || event.clientY>=bounds.bottom;
+for(const dialog of document.querySelectorAll('dialog')){
+  const outside=event=>{
+    if(event.target!==dialog)return false;
+    const bounds=dialog.getBoundingClientRect();
+    return event.clientX<bounds.left || event.clientX>=bounds.right ||
+      event.clientY<bounds.top || event.clientY>=bounds.bottom;
+  };
+  let pressedOutside=false;
+  dialog.addEventListener('pointerdown',event=>{pressedOutside=outside(event);});
+  dialog.addEventListener('click',event=>{
+    if(pressedOutside && outside(event))dialog.close();
+    pressedOutside=false;
+  });
 }
-let pressedBackdrop=false;
-dressDialog.addEventListener('pointerdown',event=>{pressedBackdrop=onDressBackdrop(event);});
-dressDialog.addEventListener('click',event=>{
-  if(pressedBackdrop && onDressBackdrop(event) && !form.querySelector('[type=submit]').disabled){
-    dressDialog.close();
-  }
-  pressedBackdrop=false;
-});
 const fields=form.elements;
 get('edit-add-color').onclick=()=>{
   const option=state.options.find(item=>item.id===dressId);
@@ -470,17 +471,33 @@ get('save-current').onclick=()=>{
     void save();
   }
 };
-const moreActions=get('more-actions');
-moreActions.addEventListener('click',event=>{
-  if(event.target.closest('button'))moreActions.open=false;
-});
+get('discard-lineup').onclick=()=>{
+  if(viewed){showToast('No lineup changes to discard.');return;}
+  if(!confirm('Discard lineup changes since your last explicit save?'))return;
+  const saved=state.saved.find(item=>item.id===editingSnapshot);
+  const restore=structuredClone(draftCheckpoint);
+  editingSnapshot=null;
+  viewed=saved?.id??viewed;
+  change(target=>{
+    target.draft={...restore,looks:restore.looks.map((look,index)=>
+      target.options.some(item=>item.id===look?.option && item.person===index)?look:null)};
+  });
+};
+const toolbarMenus=[get('save-actions'),get('more-actions')];
+for(const menu of toolbarMenus){
+  menu.addEventListener('click',event=>{
+    if(event.target.closest('button'))menu.open=false;
+  });
+}
 document.addEventListener('pointerdown',event=>{
-  if(moreActions.open && !moreActions.contains(event.target))moreActions.open=false;
+  for(const menu of toolbarMenus)if(menu.open && !menu.contains(event.target))menu.open=false;
 });
 document.addEventListener('keydown',event=>{
-  if(event.key==='Escape' && moreActions.open){
-    moreActions.open=false;
-    moreActions.querySelector('summary').focus();
+  if(event.key!=='Escape')return;
+  const menu=toolbarMenus.find(menu=>menu.open);
+  if(menu){
+    menu.open=false;
+    menu.querySelector('summary').focus();
   }
 });
 get('final-lineup').onclick=()=>{
@@ -530,6 +547,7 @@ async function start() {
   if(!key){get('entry').textContent='Open your shared Swatch Party link to continue.';return;}
   try {
     server=await(await request()).json();
+    draftCheckpoint=structuredClone(server.state.draft);
     sessionStorage.setItem('swatch-workspace',key);
     const candidate=fragment.get('lineup');
     viewed=server.state.saved.some(item=>item.id===candidate)?candidate:null;
