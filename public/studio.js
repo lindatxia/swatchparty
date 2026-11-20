@@ -168,10 +168,12 @@ function card(person,index,draft,options) {
       '" aria-label="Edit '+html(display.style)+'" title="Edit dress">'+
       '<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">'+
       '<path d="m14 5 5 5M4 20l5-1L20 8a3.5 3.5 0 0 0-5-5L4 14z"/></svg></button>';
-    return '<div class="option" aria-current="'+chosen+'"><div class="option-head">'+
+    const handle=savedOnly||grouped.size<2?'':'<button type="button" class="dress-reorder" id="reorder-'+item.id+
+      '" aria-label="Reorder '+html(display.style)+' with the up and down arrow keys" title="Drag to reorder">⠿</button>';
+    return '<div class="option"'+(handle?' data-reorder="'+item.id+'"':'')+' aria-current="'+chosen+'"><div class="option-head">'+
       (select?'<button type="button" class="option-select" id="pick-'+item.id+'" data-pick="'+item.id+
-        '" aria-pressed="'+chosen+'">'+details+'</button>':details)+edit+'</div>'+
-(shades.length?'<div class="swatches">'+shades.map(shade=>
+        '" aria-pressed="'+chosen+'">'+details+'</button>':details)+'<div class="option-actions">'+handle+edit+'</div></div>'+
+      (shades.length?'<div class="swatches">'+shades.map(shade=>
         '<button class="swatch" style="--swatch:'+colors[shade]+'" title="'+html(shade)+'" aria-label="'+html(item.style+' in '+shade)+
         '" aria-pressed="'+(chosen&&look.color===shade)+'" data-pick="'+item.id+'" data-color="'+html(shade)+
         '" id="sw-'+item.id+'-'+Object.keys(colors).indexOf(shade)+'"'+(savedOnly?' disabled':'')+'></button>').join('')+
@@ -184,6 +186,7 @@ function card(person,index,draft,options) {
 
 }
 function render(focus) {
+  drag=null;
   const previousScroll=get(focus)?.closest('.swatches')?.scrollLeft;
   const content=visible();
   const {draft,options}=content;
@@ -234,7 +237,7 @@ function loadPanel(cardElement,backdrop) {
   }).catch(()=>{if(panel.isConnected)notice('The backdrop could not be loaded.');});
 }
 async function refreshCatalog() {
-  if(!state || checkingCatalog || document.hidden || document.querySelector('dialog[open]'))return;
+  if(!state || drag || checkingCatalog || document.hidden || document.querySelector('dialog[open]'))return;
   checkingCatalog=true;
   try {
     const url=new URL('./catalog.js',import.meta.url);
@@ -250,7 +253,7 @@ async function refreshCatalog() {
     if(tag===catalogTag)return;
     url.searchParams.set('revision',validator??String(Date.now()));
     const {catalog:latest}=await import(url.href);
-    if(document.querySelector('dialog[open]'))return;
+    if(drag||document.querySelector('dialog[open]'))return;
     catalogTag=tag;
     if(JSON.stringify(catalog)===JSON.stringify(latest))return;
     const {draft,options}=visible();
@@ -309,6 +312,64 @@ get('palette').onchange=event=>{
   if(state.draft.palette===value){render();return;}
   change(target=>{target.draft.palette=value;});
 };
+function moveDress(sourceId,targetId) {
+  if(sourceId===targetId)return;
+  change(workspace=>{
+    const source=workspace.options.find(item=>item.id===sourceId);
+    const target=workspace.options.find(item=>item.id===targetId);
+    if(!source||!target||source.person!==target.person)return;
+    const sourceGroup=dressGroup(source);
+    const targetGroup=dressGroup(target);
+    if(sourceGroup===targetGroup)return;
+    const column=workspace.options.filter(item=>item.person===source.person);
+    const groups=Map.groupBy(column,dressGroup);
+    const order=[...groups.keys()];
+    const targetIndex=order.indexOf(targetGroup);
+    order.splice(order.indexOf(sourceGroup),1);
+    order.splice(targetIndex,0,sourceGroup);
+    const reordered=order.flatMap(group=>groups.get(group));
+    let index=0;
+    workspace.options=workspace.options.map(item=>item.person===source.person?reordered[index++]:item);
+  },'reorder-'+sourceId);
+}
+
+const lineup=get('lineup');
+let drag;
+lineup.addEventListener('pointerdown',event=>{
+  const handle=event.target.closest('.dress-reorder');
+  if(!handle||drag||!event.isPrimary||event.button!==0)return;
+  const source=handle.closest('[data-reorder]');
+  handle.setPointerCapture(event.pointerId);
+  drag={source,column:source.parentElement,pointer:event.pointerId,y:event.clientY};
+});
+lineup.addEventListener('pointermove',event=>{
+  if(drag?.pointer!==event.pointerId)return;
+  if(!drag.active&&Math.abs(event.clientY-drag.y)<5)return;
+  drag.active=true;
+  drag.source.classList.add('reordering');
+  drag.target?.classList.remove('reorder-target');
+  const hit=document.elementFromPoint(event.clientX,event.clientY);
+  drag.target=hit?.closest('[data-reorder]');
+  if(drag.target?.parentElement!==drag.column||drag.target===drag.source)drag.target=null;
+  drag.target?.classList.add('reorder-target');
+});
+function endReorder(event) {
+  if(drag?.pointer!==event.pointerId)return;
+  const {source,target}=drag;
+  drag=null;
+  source.classList.remove('reordering');
+  target?.classList.remove('reorder-target');
+  if(event.type==='pointerup'&&target)moveDress(source.dataset.reorder,target.dataset.reorder);
+}
+for(const type of ['pointerup','pointercancel','lostpointercapture'])lineup.addEventListener(type,endReorder);
+lineup.addEventListener('keydown',event=>{
+  const handle=event.target.closest('.dress-reorder');
+  if(!handle||!['ArrowUp','ArrowDown'].includes(event.key))return;
+  event.preventDefault();
+  const source=handle.closest('[data-reorder]');
+  const target=event.key==='ArrowUp'?source.previousElementSibling:source.nextElementSibling;
+  if(target?.dataset.reorder)moveDress(source.dataset.reorder,target.dataset.reorder);
+});
 get('lineup').onclick=event=>{
   const button=event.target.closest('button');
   if(!button)return;
@@ -637,7 +698,7 @@ window.addEventListener('focus',async()=>{
   if(!server||edits.length)return;
   try {
     const latest=await(await request()).json();
-    if(!edits.length && latest.version>server.version){server=latest;refreshState();render();}
+    if(!drag && !edits.length && latest.version>server.version){server=latest;refreshState();render();}
   } catch {}
 });
 async function start() {

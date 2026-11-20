@@ -75,6 +75,11 @@ a, .text-button{color:var(--ink);text-decoration:underline;text-underline-offset
 .dress-edit:is(:hover,:focus-visible){background:transparent;color:var(--ink)}
 .dress-edit:focus-visible{outline:none}
 .dress-edit:focus-visible svg{box-shadow:0 2px currentColor}
+.option-actions{display:flex;align-items:start;gap:12px}
+.dress-reorder{position:relative;width:18px;height:1lh;min-height:0;padding:0;border:0;background:transparent;color:var(--muted);cursor:grab;touch-action:none}
+.dress-reorder:active{cursor:grabbing}
+.option.reordering{opacity:.5}
+.option.reorder-target{outline:2px dashed #89566f;outline-offset:1px}
 .option-details{display:grid;min-width:0;gap:1px}
 .option-head .pick{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .option-shade{display:flex;align-items:center;gap:5px;min-width:0;color:var(--muted);font-size:.86rem}
