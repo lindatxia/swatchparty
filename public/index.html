@@ -61,15 +61,14 @@
   <dialog id="dress-dialog">
     <form id="dress-form">
       <h2 id="dress-heading">Add a dress</h2>
-      <label>Azazie URL <input name="url" type="url" required placeholder="https://www.azazie.com/products/…"></label>
       <div class="form-row">
         <label>Style <input name="style" required maxlength="80"></label>
         <div class="dress-color-field">
           <label for="dress-color">Color</label>
           <select id="dress-color" name="color" required></select>
         </div>
-        <label>Size (optional) <input name="size" maxlength="24" placeholder="A4"></label>
       </div>
+      <label>Azazie URL <input name="url" autofocus type="url" required placeholder="https://www.azazie.com/products/…"></label>
       <a id="dress-retailer" target="_blank" rel="noopener noreferrer" hidden>View on Azazie</a>
       <p id="dress-message" role="status"></p>
       <div class="actions"><button id="cancel-dress" type="button">Cancel</button><button type="submit">Save dress</button></div>

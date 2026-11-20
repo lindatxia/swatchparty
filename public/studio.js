@@ -150,7 +150,7 @@ function card(person,index,draft,options) {
       (source.photo?'<span class="option-shade"><i class="selected-color" style="--swatch:'+colors[shade]+'"></i>'+
         '<span class="shade-name" title="'+html(shade)+'">'+html(shade)+'</span></span>':
         '<span class="option-shade"><span class="shade-name">'+(verified.size?'Choose a verified color':'Exact photo not added')+'</span></span>')+
-      (display.size?'<span class="size">'+html(display.size)+'</span>':'')+'</span>'+
+      '</span>'+
       (savedOnly?'</div>':'<span class="option-chevron" aria-hidden="true"></span></button>')+(shades.length?'<div class="swatches">'+shades.map(shade=>
         '<button class="swatch" style="--swatch:'+colors[shade]+'" title="'+html(shade)+'" aria-label="'+html(item.style+' in '+shade)+
         '" aria-pressed="'+(chosen&&look.color===shade)+'" data-pick="'+item.id+'" data-color="'+html(shade)+
@@ -415,7 +415,6 @@ function openDress(person,option) {
   fields.style.value=option?.style??'';
   const look=visible().draft.looks[person];
   showDressColors(option&&readProduct(option.url),option && look?.option===option.id?look.color:option?.color);
-  fields.size.value=option?.size??'';
   form.querySelector('[data-delete]')?.remove();
   if(option) {
     const remove=document.createElement('button');
@@ -451,7 +450,6 @@ fields.url.addEventListener('input',()=>{
   showDressColors(info,info?.color);
   if(!info)return;
   if(info.style)fields.style.value=info.style;
-  if(info.size)fields.size.value=info.size;
 });
 get('cancel-dress').onclick=()=>get('dress-dialog').close();
 async function upload(file) {
@@ -472,7 +470,7 @@ form.onsubmit=async event=>{
   submit.disabled=true;
   get('dress-message').textContent='Preparing the dress…';
   try {
-    const option={id,person,style:fields.style.value.trim(),size:fields.size.value.trim(),color,
+    const option={id,person,style:fields.style.value.trim(),size:old?.size??'',color,
       url:variant?.url??info.url,urlColor:variant?.color||info.color||color,photo,sourceColor:variant?.color??'',
       colorLinks:(old?.colorLinks??[]).filter(item=>dressColorLink({url:variant?.url??info.url},item.url))};
     change(target=>{
