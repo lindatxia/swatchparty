@@ -18,7 +18,7 @@ button:disabled{opacity:.6;cursor:wait}
 a, .text-button{color:var(--ink);text-decoration:underline;text-underline-offset:3px}
 .text-button{min-height:33px;border:0;background:none;padding:2px 4px}
 .toolbar,.palette-tools,.actions{display:flex;align-items:center;flex-wrap:wrap;gap:8px 14px}
-.toolbar{justify-content:space-between;border-top:1px solid var(--line);padding:14px 0 8px}
+.toolbar{justify-content:space-between;border-top:1px solid var(--line);padding:14px 0 8px;margin-bottom:clamp(16px,2.5vw,30px)}
 .palette-tools{gap:10px}
 .palette-picker{display:grid;align-items:center;position:relative}
 .palette-picker select{appearance:none;padding-inline:63px 34px;min-height:44px;min-width:184px}

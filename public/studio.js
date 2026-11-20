@@ -133,7 +133,7 @@ function card(person,index,draft,options) {
       '" target="_blank" rel="noopener noreferrer" aria-label="'+linkLabel+'" title="'+linkLabel+'"><span aria-hidden="true">↗</span></a>':'';
     const savedOnly=!liveOptions.some(live=>live.id===item.id);
     const verified=new Set(verifiedVariants(display).map(variant=>variant.color));
-    const shades=[...new Set([item.color,...palettes[draft.palette],shade])].filter(color=>verified.has(color));
+    const shades=[...new Set([...palettes[draft.palette],...verified])].filter(color=>verified.has(color));
     return '<div class="option" aria-current="'+chosen+'"><div class="option-head">'+
       '<div class="option-details"><button class="text-button pick" data-pick="'+item.id+'" id="pick-'+item.id+
       '" aria-pressed="'+chosen+'"'+(savedOnly||!verifiedVariants(item).length?' disabled':'')+'>'+html(display.style)+'</button>'+
@@ -146,7 +146,7 @@ function card(person,index,draft,options) {
         '<button class="swatch" style="--swatch:'+colors[shade]+'" title="'+html(shade)+'" aria-label="'+html(item.style+' in '+shade)+
         '" aria-pressed="'+(chosen&&look.color===shade)+'" data-pick="'+item.id+'" data-color="'+html(shade)+
         '" id="sw-'+item.id+'-'+Object.keys(colors).indexOf(shade)+'"'+(savedOnly?' disabled':'')+'></button>').join('')+
-      '</div>':'<p class="pending-photo">No verified photos in this palette</p>')+'</div>';
+      '</div>':'<p class="pending-photo">No verified colors yet</p>')+'</div>';
   }).join('');
   return '<article class="card">'+heading+'<div class="preview">'+label+
     '</div><div class="options">'+cards+'</div><button class="add" data-add="'+index+'">Add a dress from a link</button></article>';
