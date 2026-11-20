@@ -146,8 +146,6 @@ function card(person,index,draft,options) {
     const shades=[...new Set([...palettes[draft.palette],...verified])].filter(color=>verified.has(color));
     const pending=[...new Set([display,...liveOptions.filter(live=>dressGroup(live)===dressGroup(item))]
       .flatMap(entry=>(entry.colorLinks??[]).map(link=>link.color)).filter(color=>!verified.has(color)))];
-    const addColor=savedOnly?'':'<button type="button" class="text-button add-color" data-add-color="'+item.id+
-      '" id="add-color-'+item.id+'" aria-label="Add color to '+html(display.style)+'">+ Color</button>';
     return '<div class="option" aria-current="'+chosen+'"><div class="option-head">'+
       '<div class="option-details"><button class="text-button pick" data-pick="'+item.id+'" id="pick-'+item.id+
       '" aria-pressed="'+chosen+'"'+(savedOnly||!verifiedVariants(item).length?' disabled':'')+' title="'+html(display.style)+'">'+html(display.style)+'</button>'+
@@ -163,7 +161,7 @@ function card(person,index,draft,options) {
         '" id="sw-'+item.id+'-'+Object.keys(colors).indexOf(shade)+'"'+(savedOnly?' disabled':'')+'></button>').join('')+
       '</div>':'<p class="pending-photo">No verified colors yet</p>')+
       (pending.length?'<p class="pending-photo">Awaiting photo: '+html(pending.join(', '))+'</p>':'')+
-      addColor+'</div>';
+      '</div>';
   }).join('');
   return '<article class="card">'+heading+'<div class="preview">'+label+
     '</div><div class="options">'+cards+'</div><button class="add" data-add="'+index+'">Add a dress from a link</button></article>';
@@ -299,11 +297,7 @@ get('lineup').onclick=event=>{
   const button=event.target.closest('button');
   if(!button)return;
   if(button.dataset.add!==undefined){openDress(Number(button.dataset.add));return;}
-  if(button.dataset.addColor){
-    const option=state.options.find(item=>item.id===button.dataset.addColor);
-    if(option)openColor(option);
-    return;
-  }
+
   if(button.dataset.edit){
     const item=state.options.find(option=>option.id===button.dataset.edit);
     if(item)openDress(item.person,item);
@@ -367,7 +361,7 @@ colorForm.onsubmit=event=>{
     showToast(message);
   }
   colorDialog.close();
-  get(fromEdit?'dress-color':'add-color-'+option.id)?.focus({preventScroll:true});
+  get('dress-color').focus({preventScroll:true});
 };
 const dressDialog=get('dress-dialog');
 const form=get('dress-form');
