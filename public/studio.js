@@ -133,14 +133,21 @@ async function imageURL(photo) {
   }
   return images.get(photo);
 }
+function linkedColors(option,options) {
+  const group=dressGroup(option);
+  return [option,...options.filter(item=>item!==option && item.person===option.person && dressGroup(item)===group)]
+    .flatMap(item=>item.colorLinks??[]);
+}
 function card(person,index,draft,options) {
   const look=draft.looks[index];
   const option=selectedOption(options,look);
   const preview=exactPreview(option,look?.color);
   const heading='<h2>'+html(person)+'</h2>';
+  const pendingPreview=option && !preview.photo && linkedColors(option,options).some(link=>link.color===look.color);
   const label=preview.photo
     ? '<img data-photo="'+html(preview.photo)+'" alt="'+html(option.style+' in '+look.color)+'">'
-    : '<span class="missing">'+(option?'Exact photo unavailable':'No dress selected')+'</span>';
+    : pendingPreview?'<span class="missing" data-pending-preview>Image is downloading... check back in a bit!</span>':
+      '<span class="missing">'+(option?'Exact photo unavailable':'No dress selected')+'</span>';
   const liveOptions=state.options.filter(item=>item.person===index);
   const grouped=new Map();
   for(const item of liveOptions){
@@ -152,17 +159,15 @@ function card(person,index,draft,options) {
     const chosen=item.id===look?.option;
     const display=chosen?option:item;
     const shade=chosen?look.color:item.lastColor??item.color;
-    const source=exactPreview(display,shade);
     const savedOnly=!liveOptions.some(live=>live.id===item.id);
     const verified=new Set(verifiedVariants(display).map(variant=>variant.color));
-    const shades=[...new Set([...palettes[draft.palette],...verified])].filter(color=>verified.has(color));
-    const pending=[...new Set([display,...liveOptions.filter(live=>dressGroup(live)===dressGroup(item))]
-      .flatMap(entry=>(entry.colorLinks??[]).map(link=>link.color)).filter(color=>!verified.has(color)))];
-    const select=!savedOnly && verified.size;
+    const available=new Set([...verified,...linkedColors(display,savedOnly?[]:liveOptions).map(link=>link.color)]);
+    const shades=[...new Set([...palettes[draft.palette],...available])].filter(color=>available.has(color));
+    const select=!savedOnly && available.size;
     const details='<span class="option-details"><span class="pick">'+html(display.style)+'</span>'+
-      (source.photo?'<span class="option-shade"><i class="selected-color" style="--swatch:'+colors[shade]+'"></i>'+
+      (available.has(shade)?'<span class="option-shade"><i class="selected-color" style="--swatch:'+colors[shade]+'"></i>'+
         '<span class="shade-name" title="'+html(shade)+'">'+html(shade)+'</span></span>':
-        '<span class="option-shade"><span class="shade-name">'+(verified.size?'Choose a verified color':'Exact photo not added')+'</span></span>')+
+        '<span class="option-shade"><span class="shade-name">'+(available.size?'Choose a color':'Exact photo not added')+'</span></span>')+
       '</span>';
     const edit=savedOnly?'':'<button type="button" class="dress-edit" data-edit="'+item.id+
       '" aria-label="Edit '+html(display.style)+'" title="Edit dress">'+
@@ -178,7 +183,6 @@ function card(person,index,draft,options) {
         '" aria-pressed="'+(chosen&&look.color===shade)+'" data-pick="'+item.id+'" data-color="'+html(shade)+
         '" id="sw-'+item.id+'-'+Object.keys(colors).indexOf(shade)+'"'+(savedOnly?' disabled':'')+'></button>').join('')+
       '</div>':'<p class="pending-photo">No verified colors yet</p>')+
-      (pending.length?'<p class="pending-photo">Awaiting photo: '+html(pending.join(', '))+'</p>':'')+
       '</div>';
   }).join('');
   return '<article class="card">'+heading+'<div class="preview">'+label+
@@ -276,7 +280,10 @@ async function refreshCatalog() {
 }
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)void refreshCatalog();});
 window.addEventListener('focus',()=>void refreshCatalog());
-setInterval(refreshCatalog,15000);
+setInterval(refreshCatalog,15_000);
+setInterval(()=>{
+  if(get('lineup').querySelector('[data-pending-preview]'))void refreshCatalog();
+},4_000);
 function beginDraft() {
   const snapshot=state.saved.find(item=>item.id===viewed);
   if(snapshot)editingSnapshot=snapshot.id;
@@ -384,15 +391,19 @@ get('lineup').onclick=event=>{
   if(!option)return;
   const look=visible().draft.looks[option.person];
   const previous=look?.option===option.id?look.color:option.lastColor;
-  const variants=verifiedVariants(option);
-  const color=[button.dataset.color,previous,option.color,variants[0]?.color]
-    .find(shade=>variants.some(item=>item.color===shade));
+  const links=linkedColors(option,state.options);
+  const available=new Set([...verifiedVariants(option).map(item=>item.color),...links.map(link=>link.color)]);
+  const color=[button.dataset.color,previous,option.color,...available].find(shade=>available.has(shade));
   if(!color)return;
   const start=beginDraft();
   change(target=>{
     start(target);
     const live=target.options.find(item=>item.id===option.id);
     if(!live)return;
+    const link=linkedColors(live,target.options).find(item=>item.color===color);
+    if(link && !live.colorLinks?.some(item=>item.color===color)){
+      live.colorLinks=[...(live.colorLinks??[]),link];
+    }
     const priorLook=target.draft.looks[option.person];
     const prior=selectedOption(target.options,priorLook);
     const nextGroup=dressGroup(live);
@@ -489,7 +500,9 @@ fields.color.addEventListener('change',()=>{
 function showDressColors(info,preferred) {
   const variants=verifiedVariants(info);
   const known=variants.map(item=>item.color);
-  const allowed=known.length?known:info?.color?[info.color]:[];
+  const current=state.options.find(item=>item.id===dressId);
+  const added=current && info?.styleKey===readProduct(current.url)?.styleKey?linkedColors(current,state.options):[];
+  const allowed=[...new Set([...(known.length?known:info?.color?[info.color]:[]),...added.map(link=>link.color)])];
   const selected=allowed.includes(preferred)?preferred:allowed[0]??'';
   const actions=dressId?[[addColorValue,'Add another color…']]:[];
   fields.color.innerHTML=selectOptions([['','Select a color'],...allowed.map(shade=>[shade,shade]),...actions],selected);
@@ -563,10 +576,11 @@ form.onsubmit=async event=>{
   try {
     const option={id,person,style:fields.style.value.trim(),size:old?.size??'',color,lastColor:color,
       url:variant?.url??info.url,urlColor:variant?.color||info.color||color,photo,sourceColor:variant?.color??'',
-      colorLinks:(old?.colorLinks??[]).filter(item=>dressColorLink({url:variant?.url??info.url},item.url))};
+      colorLinks:[...new Map((old?linkedColors(old,state.options):[]).filter(item=>
+        dressColorLink({url:variant?.url??info.url},item.url)).map(item=>[item.color,item])).values()]};
     change(target=>{
       target.options=target.options.some(item=>item.id===id)?target.options.map(item=>item.id===id?option:item):[...target.options,option];
-      if(variant && (!old || target.draft.looks[person]?.option===id))target.draft.looks[person]={option:id,color};
+      if((variant||option.colorLinks.some(item=>item.color===color)) && (!old || target.draft.looks[person]?.option===id))target.draft.looks[person]={option:id,color};
     });
     viewed=null;
     render();

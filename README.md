@@ -29,6 +29,6 @@ The local SQLite workspace and deployed Postgres workspace are separate stores. 
 
 ## Photo previews
 
-Verified Azazie photos are bundled with transparent cutouts. The picker offers only variants in the verified catalog. Each has the exact official style, fabric, and shade listing and a full-length cutout. An unfamiliar submission can be saved for later verification. It becomes selectable when its exact catalog entry is added. Previously selected combinations without an exact match show an empty preview. The lineup and PDF use exact catalog photos only.
+Verified Azazie photos are bundled with transparent cutouts for the exact style, fabric, and shade. Adding a color link makes its swatch selectable immediately. Selecting a shade with a pending photo shows a message in the preview. The app checks for catalog updates every few seconds while that preview is visible and replaces the message when the exact cutout is available. Photos and cutouts are published through the catalog. The lineup and PDF use exact catalog photos only.
 
 Use **Set backdrop** to upload the shared background. The Mountain Terrace candidate is not bundled.
