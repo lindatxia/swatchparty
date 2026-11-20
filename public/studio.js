@@ -193,14 +193,15 @@ function render(focus) {
   get('final-lineup').textContent=viewed===state.finalId?'Final lineup':'Mark final';
   get('delete-lineup').hidden=!viewed;
   get('plain').hidden=!draft.backdrop;
-  get('lineup').innerHTML='<div class="scene" aria-hidden="true"></div>'+people.map((person,index)=>card(person,index,draft,options)).join('');
+  get('lineup').innerHTML=people.map((person,index)=>card(person,index,draft,options)).join('');
   for(const img of get('lineup').querySelectorAll('img[data-photo]')) {
     const missing=()=>{const label=document.createElement('span');label.className='missing';label.textContent='Photo unavailable';img.replaceWith(label);};
     img.onerror=missing;
     imageURL(img.dataset.photo).then(src=>{if(current===renderVersion)img.src=src;}).catch(missing);
   }
   if(draft.backdrop) imageURL(draft.backdrop).then(src=>{
-    if(current===renderVersion)get('lineup').querySelector('.scene').style.backgroundImage='url("'+src+'")';
+    if(current!==renderVersion)return;
+    for(const panel of get('lineup').querySelectorAll('.preview'))panel.style.backgroundImage='url("'+src+'")';
   }).catch(()=>notice('The backdrop could not be loaded.'));
   if(focus){
     const control=get(focus);

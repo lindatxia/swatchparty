@@ -57,8 +57,7 @@ a, .text-button{color:var(--ink);text-decoration:underline;text-underline-offset
 #lineup{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:16px;position:relative;isolation:isolate}
 .card{min-width:0}
 .card h2{font-size:1.25rem;margin-bottom:7px;text-align:center}
-.scene{position:absolute;z-index:-1;top:35px;height:clamp(260px,34vw,480px);inset-inline:0;border-radius:23px 27px 21px 24px;background:#eee8e1 center 65%/cover no-repeat}
-.preview{height:clamp(260px,34vw,480px);display:flex;align-items:end;justify-content:center;position:relative;padding:8px;overflow:hidden}
+.preview{height:clamp(260px,34vw,480px);display:flex;align-items:end;justify-content:center;position:relative;padding:8px;overflow:hidden;border:1px solid var(--line);border-radius:22px;background:#eee8e1 center 65%/cover no-repeat}
 .preview img{max-width:100%;max-height:100%;height:100%;object-fit:contain;object-position:center bottom;border-radius:21px 19px 24px 18px}
 .preview .missing{align-self:center;color:var(--muted);text-align:center}
 .selected-color{display:inline-block;flex:none;width:12px;height:12px;background:var(--swatch);border-radius:55% 45% 58% 42%;border:1px solid #0002}
@@ -103,13 +102,13 @@ dialog .actions{justify-content:end}
 #dress-form [data-delete]:is(:hover,:focus-visible){color:#8d2531;background:#f8e5e7;border-color:#c67880}
 @media(max-width:1000px){
   #lineup{min-width:839px;grid-template-columns:repeat(5,minmax(155px,1fr))}
-  .preview,.scene{height:350px}
+  .preview{height:350px}
 }
 @media(max-width:650px){
   main{width:calc(100% - 24px)}
   header{padding:22px 0 18px}
   #lineup{--column:min(265px,calc((100vw - 42px) / 2));grid-template-columns:repeat(5,var(--column));width:calc(5 * var(--column) + 48px);min-width:0;gap:12px}
-  .preview,.scene{height:clamp(225px,64vw,360px)}
+  .preview{height:clamp(225px,64vw,360px)}
   .form-row{grid-template-columns:1fr}
   .actions{gap:5px 8px}
   .toolbar-actions{margin-left:auto;justify-content:flex-end}
