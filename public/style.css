@@ -21,11 +21,19 @@ a, .text-button{color:var(--ink);text-decoration:underline;text-underline-offset
 .toolbar{justify-content:space-between;border-top:1px solid var(--line);padding:14px 0 8px}
 .palette-tools{gap:10px}
 .palette-picker{display:grid;align-items:center;position:relative}
-.palette-picker select{appearance:none;padding-inline:76px 36px;min-height:44px;min-width:184px}
+.palette-picker select{appearance:none;padding-inline:63px 34px;min-height:44px;min-width:184px}
 .palette-picker::after{content:"";position:absolute;right:15px;width:7px;height:7px;border:solid var(--muted);border-width:0 1.5px 1.5px 0;transform:translateY(-2px) rotate(45deg);pointer-events:none}
-.palette-dots{position:absolute;left:12px;display:flex;pointer-events:none}
-.palette-dots i{width:18px;height:18px;border-radius:50%;background:var(--swatch);border:2px solid var(--page)}
+.palette-dots{position:absolute;left:10px;display:flex;pointer-events:none}
+.palette-dots i{width:16px;height:16px;border-radius:50%;background:var(--swatch);border:2px solid var(--page)}
 .palette-dots i+i{margin-left:-6px}
+@supports (appearance:base-select){
+  .palette-picker select,.palette-picker select::picker(select){appearance:base-select}
+  .palette-picker select::picker-icon{display:none}
+  .palette-picker select::picker(select){padding:4px;border:1px solid var(--line);border-radius:14px;background:var(--page);color:var(--ink);margin-top:4px}
+  .palette-picker option{padding:6px 8px;border-radius:8px;gap:8px}
+  .palette-picker option::checkmark{order:1;margin-inline-start:auto}
+  .palette-picker option:is(:hover,:focus-visible){background:var(--soft)}
+}
 .save-meta{display:grid;grid-auto-flow:row;justify-items:start;color:var(--muted);font-size:.9rem}
 .save-meta span:empty,.saved-time:not(:has(time:not(:empty))){display:none}
 .saved-time{display:inline-flex;align-items:center;gap:5px;font-size:.88rem}
