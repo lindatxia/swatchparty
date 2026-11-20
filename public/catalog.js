@@ -26,7 +26,8 @@ export const catalog = [
   {style:'Velma',color:'Sea Moss',variantGroup:'velma',url:url('velma-sea-moss-a-line-side-slit-chiffon-floor-length-bridesmaid-dress/64697070'),photo:'/velma-sea-moss.jpg'},
   {style:'Juniper',color:'Olive',variantGroup:'juniper',url:url('juniper-olive-mermaid-one-shoulder-stretch-satin-floor-length-bridesmaid-dress/98005557'),photo:'/juniper-olive.jpg'},
   {style:'Juniper',color:'Amethyst',variantGroup:'juniper',url:url('juniper-amethyst-mermaid-one-shoulder-stretch-satin-floor-length-bridesmaid-dress/98005516'),photo:'/juniper-amethyst.jpg'},
-  {style:'Alexia',color:'Olive',variantGroup:'alexia-chiffon',url:url('alexia-olive-a-line-ruched-chiffon-floor-length-bridesmaid-dress/120694473'),photo:'/alexia-olive.jpg'}
+  {style:'Alexia',color:'Olive',variantGroup:'alexia-chiffon',url:url('alexia-olive-a-line-ruched-chiffon-floor-length-bridesmaid-dress/120694473'),photo:'/alexia-olive.jpg'},
+  {style:'Isonelle',color:'Vintage Rose',url:'https://www.azazie.com/products/isonelle-vintage-rose-maxi-dress-atelier-dress/115179469?subsite=atelier',photo:'/isonelle-vintage-rose.jpg'}
 ];
 export function productURL(input) {
   try {

@@ -153,7 +153,7 @@ function card(person,index,draft,options) {
       '" aria-pressed="'+chosen+'"'+(savedOnly||!verifiedVariants(item).length?' disabled':'')+' title="'+html(display.style)+'">'+html(display.style)+'</button>'+
       (source.photo?'<span class="option-shade"><i class="selected-color" style="--swatch:'+colors[shade]+'"></i>'+
         '<span class="shade-name" title="'+html(shade)+'">'+html(shade)+'</span></span>':
-        '<span class="option-shade"><span class="shade-name">'+(verified.size?'Choose a verified color':'Waiting for verification')+'</span></span>')+
+        '<span class="option-shade"><span class="shade-name">'+(verified.size?'Choose a verified color':'Exact photo not added')+'</span></span>')+
       (display.size?'<span class="size">'+html(display.size)+'</span>':'')+'</div>'+
       '<div class="option-actions">'+link+
       (savedOnly?'':'<button class="edit-option" data-edit="'+item.id+'" aria-label="Edit '+html(item.style)+'">Edit</button>')+
