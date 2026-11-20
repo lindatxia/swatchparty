@@ -1,4 +1,4 @@
-import {catalog,colors,palettes,people,readProduct,exactPreview,verifiedVariants,dressColorLink} from './catalog.js';
+import {catalog,colors,palettes,people,readProduct,exactPreview,verifiedVariants,dressColorLink,initialWorkspace} from './catalog.js';
 import {downloadPDF} from './export.js';
 
 const get=id=>document.getElementById(id);
@@ -17,7 +17,7 @@ const images=new Map();
 const edits=[];
 let server, state, saving=false, failed=false, viewed=null, dressPerson, dressId;
 let catalogTag=null, checkingCatalog=false;
-let toastTimer, editingSnapshot=null, paletteEdit;
+let toastTimer, editingSnapshot=null, activePalette, switchingPalette=false;
 
 function hideToast() {
   clearTimeout(toastTimer);
@@ -59,8 +59,17 @@ async function request(query='',options={}) {
 function visible() {
   return state.saved.find(item=>item.id===viewed)??{draft:state.draft,options:state.options};
 }
+function compatibleDraft(draft,options) {
+  return {...draft,looks:draft.looks.map((look,person)=>
+    options.some(item=>item.id===look?.option && item.person===person)?look:null)};
+}
 function refreshState() {
   state=structuredClone(server.state);
+  if(activePalette && state.draft.palette!==activePalette){
+    const saved=state.paletteDrafts?.[activePalette] ??
+      state.saved.findLast(item=>item.draft.palette===activePalette)?.draft ?? initialWorkspace().draft;
+    state.draft=compatibleDraft({...saved,palette:activePalette},state.options);
+  }
   for(const edit of edits)edit(state);
 }
 function savedLabel(date,now) {
@@ -90,15 +99,15 @@ function showStatus() {
     if(time.textContent!==text)time.textContent=text;
   }
   get('save-current').classList.toggle('has-unsaved',dirty&&!saving);
-  get('palette').disabled=saving;
-  get('save-current').disabled=saving||addingColor;
-  get('save-lineup').disabled=saving||addingColor;
+  get('palette').disabled=saving||switchingPalette||addingColor;
+  get('save-current').disabled=saving||addingColor||switchingPalette;
+  get('save-lineup').disabled=saving||addingColor||switchingPalette;
   get('discard-lineup').disabled=saving||!dirty;
   if(dirty)window.addEventListener('beforeunload',warnUnsaved);
   else window.removeEventListener('beforeunload',warnUnsaved);
 }
 async function save(message='Lineup saved.') {
-  if(saving||addingColor||!edits.length)return;
+  if(saving||addingColor||switchingPalette||!edits.length)return;
   failed=false;
   saving=true;
   notice('');
@@ -106,7 +115,13 @@ async function save(message='Lineup saved.') {
   showStatus();
   const count=edits.length;
   try {
-    server=await (await request('',{method:'PUT',headers:{'content-type':'application/json'},body:JSON.stringify({version:server.version,state})})).json();
+    const previous=server.state.draft;
+    const paletteDrafts={...server.state.paletteDrafts,[previous.palette]:previous,[state.draft.palette]:state.draft};
+    for(const [palette,draft] of Object.entries(paletteDrafts)){
+      paletteDrafts[palette]=compatibleDraft(draft,state.options);
+    }
+    server=await (await request('',{method:'PUT',headers:{'content-type':'application/json'},
+      body:JSON.stringify({version:server.version,state:{...state,paletteDrafts}})})).json();
     edits.splice(0,count);
     refreshState();
     showToast(message);
@@ -312,30 +327,33 @@ function discardEdits() {
   viewed=editingSnapshot??viewed;
   editingSnapshot=null;
   edits.length=0;
-  paletteEdit=null;
   failed=false;
   notice('');
   refreshState();
   if(!state.saved.some(item=>item.id===viewed))viewed=null;
 }
-get('palette').onchange=event=>{
+get('palette').onchange=async event=>{
   const value=event.target.value;
-  const hasLineupEdits=edits.some(edit=>edit!==paletteEdit);
-  if(saving || hasLineupEdits && !confirm('Switch palettes and discard unsaved changes? Choose Cancel to stay here and save first.')){
+  if(saving||switchingPalette||addingColor){render();return;}
+  switchingPalette=true;
+  showStatus();
+  try {
+    const latest=await (await request('',{cache:'no-store'})).json();
+    if(edits.length && !confirm('Switch palettes and discard unsaved changes? Choose Cancel to stay here and save first.'))return;
+    if(latest.version>=server.version)server=latest;
+    const id=value.startsWith('lineup:')?value.slice(7):null;
+    const saved=id && server.state.saved.find(item=>item.id===id);
+    viewed=saved?.id??null;
+    activePalette=saved?.draft.palette??(id?server.state.draft.palette:value);
+    editingSnapshot=null;
+    discardEdits();
+    if(id&&!saved)showToast('That saved lineup is no longer available.');
+  } catch {
+    showToast('Couldn’t load the saved palette. Try again.');
+  } finally {
+    switchingPalette=false;
     render();
-    return;
   }
-  if(edits.length)discardEdits();
-  editingSnapshot=null;
-  if(value.startsWith('lineup:')){
-    viewed=value.slice(7);
-    render();
-    return;
-  }
-  viewed=null;
-  if(state.draft.palette===value){render();return;}
-  paletteEdit=target=>{target.draft.palette=value;};
-  change(paletteEdit);
 };
 function moveDress(sourceId,targetId) {
   if(sourceId===targetId)return;
@@ -772,7 +790,9 @@ async function start() {
     server=await(await request()).json();
     sessionStorage.setItem('swatch-workspace',key);
     const candidate=fragment.get('lineup');
-    viewed=server.state.saved.some(item=>item.id===candidate)?candidate:null;
+    const saved=server.state.saved.find(item=>item.id===candidate);
+    viewed=saved?.id??null;
+    activePalette=saved?.draft.palette??server.state.draft.palette;
     refreshState();
     get('entry').hidden=true;
     get('workspace').hidden=false;

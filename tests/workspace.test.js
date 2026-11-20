@@ -105,3 +105,18 @@ test('adding a color persists the link without saving the lineup',async()=>{
   const repeated=await (await request('POST',{optionId:option.id,url},'?color')).json();
   assert.equal(repeated.version,after.version);
 });
+
+test('the database keeps independent saved selections for each preset palette',async()=>{
+  const before=await (await request()).json();
+  const state=before.state;
+  const garden={...state.draft,palette:'Garden Mix'};
+  const mauve={...garden,palette:'All Mauve',looks:garden.looks.map(look=>look&&({...look,color:'Amethyst'}))};
+  state.draft=mauve;
+  state.paletteDrafts={'Garden Mix':garden,'All Mauve':mauve};
+  assert.equal((await request('PUT',{version:before.version,state})).status,200);
+  const stored=await (await request()).json();
+  assert.deepEqual(stored.state.paletteDrafts['Garden Mix'],garden);
+  assert.deepEqual(stored.state.paletteDrafts['All Mauve'],mauve);
+  state.paletteDrafts['Garden Mix']=mauve;
+  assert.equal((await request('PUT',{version:stored.version,state})).status,400);
+});

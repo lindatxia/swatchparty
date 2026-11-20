@@ -29,6 +29,9 @@ const validOptions = (options,limit) => Array.isArray(options) && options.length
   new Set(options.map(item=>item.id)).size===options.length;
 export function validState(state) {
   return !!(state && validOptions(state.options,100) && validDraft(state.draft,state.options) &&
+    (state.paletteDrafts===undefined || state.paletteDrafts && typeof state.paletteDrafts==='object' &&
+      !Array.isArray(state.paletteDrafts) && Object.entries(state.paletteDrafts).every(([palette,draft])=>
+        draft?.palette===palette && validDraft(draft,state.options))) &&
     Array.isArray(state.saved) && state.saved.length<=50 && state.saved.every(item=>
       item && validId(item.id) && string(item.name,80) && item.name.trim() &&
       validOptions(item.options,people.length) && validDraft(item.draft,item.options)) &&
