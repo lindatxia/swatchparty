@@ -138,24 +138,20 @@ function card(person,index,draft,options) {
     const display=chosen?option:item;
     const shade=chosen?look.color:item.color;
     const source=exactPreview(display,shade);
-    const link=source.link?'<a class="pick dress-link" href="'+html(source.link)+
-      '" target="_blank" rel="noopener noreferrer" title="'+html(display.style+' in '+shade+' on Azazie')+
-      '"><span aria-hidden="true">🔗</span> '+html(display.style)+'</a>':'';
     const savedOnly=!liveOptions.some(live=>live.id===item.id);
     const verified=new Set(verifiedVariants(display).map(variant=>variant.color));
     const shades=[...new Set([...palettes[draft.palette],...verified])].filter(color=>verified.has(color));
     const pending=[...new Set([display,...liveOptions.filter(live=>dressGroup(live)===dressGroup(item))]
       .flatMap(entry=>(entry.colorLinks??[]).map(link=>link.color)).filter(color=>!verified.has(color)))];
-    return '<div class="option" aria-current="'+chosen+'"><div class="option-head">'+
-      '<div class="option-details">'+(link||'<button class="text-button pick" data-pick="'+item.id+'" id="pick-'+item.id+
-      '" aria-pressed="'+chosen+'"'+(savedOnly||!verifiedVariants(item).length?' disabled':'')+' title="'+html(display.style)+'">'+html(display.style)+'</button>')+
+    const open=savedOnly?'<div class="option-head">':'<button type="button" class="option-head option-opener" data-edit="'+
+      item.id+'" aria-label="Edit '+html(display.style)+'">';
+    return '<div class="option" aria-current="'+chosen+'">'+open+
+      '<span class="option-details"><span class="pick">'+html(display.style)+'</span>'+
       (source.photo?'<span class="option-shade"><i class="selected-color" style="--swatch:'+colors[shade]+'"></i>'+
         '<span class="shade-name" title="'+html(shade)+'">'+html(shade)+'</span></span>':
         '<span class="option-shade"><span class="shade-name">'+(verified.size?'Choose a verified color':'Exact photo not added')+'</span></span>')+
-      (display.size?'<span class="size">'+html(display.size)+'</span>':'')+'</div>'+
-      '<div class="option-actions">'+
-      (savedOnly?'':'<button class="edit-option" data-edit="'+item.id+'" aria-label="Edit '+html(item.style)+'">Edit</button>')+
-      '</div></div>'+(shades.length?'<div class="swatches">'+shades.map(shade=>
+      (display.size?'<span class="size">'+html(display.size)+'</span>':'')+'</span>'+
+      (savedOnly?'</div>':'<span class="option-chevron" aria-hidden="true"></span></button>')+(shades.length?'<div class="swatches">'+shades.map(shade=>
         '<button class="swatch" style="--swatch:'+colors[shade]+'" title="'+html(shade)+'" aria-label="'+html(item.style+' in '+shade)+
         '" aria-pressed="'+(chosen&&look.color===shade)+'" data-pick="'+item.id+'" data-color="'+html(shade)+
         '" id="sw-'+item.id+'-'+Object.keys(colors).indexOf(shade)+'"'+(savedOnly?' disabled':'')+'></button>').join('')+
@@ -344,6 +340,7 @@ colorForm.onsubmit=event=>{
     }
     fields.color.value=variant.color;
     fields.color.dataset.previous=variant.color;
+    updateDressRetailer();
   } else if(variant.verified){
     const start=beginDraft();
     change(target=>{
@@ -381,9 +378,17 @@ for(const dialog of document.querySelectorAll('dialog')){
 }
 const fields=form.elements;
 const addColorValue='__add_color__';
+function updateDressRetailer(){
+  const link=get('dress-retailer');
+  const {link:href}=exactPreview(readProduct(fields.url.value.trim()),fields.color.value);
+  link.hidden=!href;
+  if(href)link.href=href;
+  else link.removeAttribute('href');
+}
 fields.color.addEventListener('change',()=>{
   if(fields.color.value!==addColorValue){
     fields.color.dataset.previous=fields.color.value;
+    updateDressRetailer();
     return;
   }
   fields.color.value=fields.color.dataset.previous??'';
@@ -398,6 +403,7 @@ function showDressColors(info,preferred) {
   const actions=dressId?[[addColorValue,'Add another color…']]:[];
   fields.color.innerHTML=selectOptions([['','Select a color'],...allowed.map(shade=>[shade,shade]),...actions],selected);
   fields.color.dataset.previous=selected;
+  updateDressRetailer();
 }
 function openDress(person,option) {
   dressPerson=person;
@@ -407,7 +413,8 @@ function openDress(person,option) {
   get('dress-message').textContent='';
   fields.url.value=option?.url??'';
   fields.style.value=option?.style??'';
-  showDressColors(option&&readProduct(option.url),option?.color);
+  const look=visible().draft.looks[person];
+  showDressColors(option&&readProduct(option.url),option && look?.option===option.id?look.color:option?.color);
   fields.size.value=option?.size??'';
   form.querySelector('[data-delete]')?.remove();
   if(option) {
