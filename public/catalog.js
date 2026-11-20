@@ -28,7 +28,8 @@ export const catalog = [
   {style:'Juniper',color:'Amethyst',variantGroup:'juniper',url:url('juniper-amethyst-mermaid-one-shoulder-stretch-satin-floor-length-bridesmaid-dress/98005516'),photo:'/juniper-amethyst.jpg'},
   {style:'Alexia',color:'Olive',variantGroup:'alexia-chiffon',url:url('alexia-olive-a-line-ruched-chiffon-floor-length-bridesmaid-dress/120694473'),photo:'/alexia-olive.jpg'},
   {style:'Isonelle',color:'Vintage Rose',url:'https://www.azazie.com/products/isonelle-vintage-rose-maxi-dress-atelier-dress/115179469?subsite=atelier',photo:'/isonelle-vintage-rose.jpg'},
-  {style:'Velma',color:'Amethyst',variantGroup:'velma',url:url('velma-amethyst-a-line-side-slit-chiffon-floor-length-bridesmaid-dress/240142'),photo:'/velma-amethyst.jpg'}
+  {style:'Velma',color:'Amethyst',variantGroup:'velma',url:url('velma-amethyst-a-line-side-slit-chiffon-floor-length-bridesmaid-dress/240142'),photo:'/velma-amethyst.jpg'},
+  {"style":"Kimber","color":"Chocolate Plum","variantGroup":"kimber-a-line-ruched-stretch-satin-floor-length-bridesmaid-dress","url":"https://www.azazie.com/products/azazie-kimber-chocolate-plum-a-line-ruched-stretch-satin-floor-length-bridesmaid-dress/138309162?country=US&currency=USD&campaigncountry=US_EN","photo":"/kimber-chocolate-plum-138309162.jpg","previousProductId":"81375093"}
 ];
 export function productURL(input) {
   try {
@@ -58,7 +59,12 @@ export function readProduct(input) {
 export function verifiedVariants(option) {
   if(!option)return [];
   const product=productURL(option.url);
-  const base=catalog.find(item=>new URL(item.url).pathname===product?.pathname && item.style===option.style);
+  const base=catalog.find(item=>{
+    if(item.style!==option.style)return false;
+    const path=new URL(item.url).pathname;
+    return path===product?.pathname || item.previousProductId &&
+      path.replace(/\/\d+$/,'/'+item.previousProductId)===product?.pathname;
+  });
   if(!base)return [];
   return catalog.filter(item=>item.photo && item.style===base.style &&
     (item===base || base.variantGroup && item.variantGroup===base.variantGroup));
