@@ -123,3 +123,7 @@ dialog .actions{justify-content:end}
 .save-chevron{width:8px;height:8px;border:solid currentColor;border-width:0 1.5px 1.5px 0;transform:translateY(-2px) rotate(45deg)}
 #save-actions .more-panel{width:max-content;max-width:calc(100vw - 72px)}
 #save-actions .more-panel span{display:inline-block;width:1.4em;text-align:center;color:var(--muted)}
+
+.dress-color-field{position:relative}
+#dress-color{appearance:none;padding-inline-end:32px}
+.dress-color-field::after{content:"";position:absolute;inset-inline-end:14px;bottom:14px;width:7px;height:7px;border:solid var(--muted);border-width:0 1.5px 1.5px 0;transform:rotate(45deg);pointer-events:none}
