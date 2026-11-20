@@ -29,7 +29,9 @@ export const catalog = [
   {style:'Alexia',color:'Olive',variantGroup:'alexia-chiffon',url:url('alexia-olive-a-line-ruched-chiffon-floor-length-bridesmaid-dress/120694473'),photo:'/alexia-olive.jpg'},
   {style:'Isonelle',color:'Vintage Rose',url:'https://www.azazie.com/products/isonelle-vintage-rose-maxi-dress-atelier-dress/115179469?subsite=atelier',photo:'/isonelle-vintage-rose.jpg'},
   {style:'Velma',color:'Amethyst',variantGroup:'velma',url:url('velma-amethyst-a-line-side-slit-chiffon-floor-length-bridesmaid-dress/240142'),photo:'/velma-amethyst.jpg'},
-  {"style":"Kimber","color":"Chocolate Plum","variantGroup":"kimber-a-line-ruched-stretch-satin-floor-length-bridesmaid-dress","url":"https://www.azazie.com/products/azazie-kimber-chocolate-plum-a-line-ruched-stretch-satin-floor-length-bridesmaid-dress/138309162?country=US&currency=USD&campaigncountry=US_EN","photo":"/kimber-chocolate-plum-138309162.jpg","previousProductId":"81375093"}
+  {"style":"Kimber","color":"Chocolate Plum","variantGroup":"kimber-a-line-ruched-stretch-satin-floor-length-bridesmaid-dress","url":"https://www.azazie.com/products/azazie-kimber-chocolate-plum-a-line-ruched-stretch-satin-floor-length-bridesmaid-dress/138309162?country=US&currency=USD&campaigncountry=US_EN","photo":"/kimber-chocolate-plum-138309162.jpg","previousProductId":"81375093"},
+  {"style":"Norah","color":"Sangria","variantGroup":"norah-a-line-v-neck-long-sleeve-chiffon-floor-length-bridesmaid-dress","url":"https://www.azazie.com/products/azazie-norah-sangria-a-line-v-neck-long-sleeve-chiffon-floor-length-bridesmaid-dress/232717","photo":"/norah-sangria-232717.jpg","previousProductId":"31276127"},
+  {"style":"Norah","color":"Ganache","variantGroup":"norah-a-line-v-neck-long-sleeve-chiffon-floor-length-bridesmaid-dress","url":"https://www.azazie.com/products/azazie-norah-ganache-a-line-v-neck-long-sleeve-chiffon-floor-length-bridesmaid-dress/89719064","photo":"/norah-ganache-89719064.jpg","previousProductId":"232717"}
 ];
 export function productURL(input) {
   try {
