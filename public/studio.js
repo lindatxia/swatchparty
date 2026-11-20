@@ -314,8 +314,7 @@ colorForm.onsubmit=event=>{
       live.colorLinks=[...(live.colorLinks??[]).filter(item=>item.color!==variant.color),{color:variant.color,url:variant.url}];
     });
     const message=variant.color+' added for photo verification.';
-    if(fromEdit)get('dress-message').textContent=message;
-    else showToast(message);
+    showToast(message);
   }
   colorDialog.close();
   get(fromEdit?'edit-add-color':'add-color-'+option.id)?.focus({preventScroll:true});
@@ -425,7 +424,7 @@ form.onsubmit=async event=>{
     viewed=null;
     render();
     get('dress-dialog').close();
-    notice(variant?'':'Dress saved. It will be selectable once there’s a verified Azazie photo.');
+    showToast(variant?'Dress saved.':'Dress saved. Exact Azazie photo still needed.');
   } catch(error) {
     get('dress-message').textContent=error.message+' You can clear the photo field and save the dress.';
   } finally {submit.disabled=false;}
@@ -439,12 +438,13 @@ get('backdrop-file').onchange=async event=>{
     const photo=await upload(file);
     const start=beginDraft();
     change(target=>{start(target);target.draft.backdrop=photo;});
-    notice('');
+    showToast('Backdrop updated.');
   } catch(error) {notice(error.message);}
 };
 get('plain').onclick=()=>{
   const start=beginDraft();
   change(target=>{start(target);target.draft.backdrop='';});
+  showToast('Backdrop removed.');
 };
 function snapshot(name,id) {
   const {draft,options}=visible();
@@ -462,6 +462,7 @@ get('name-form').onsubmit=event=>{
   change(target=>{target.saved.push(item);});
   get('name-dialog').close();
   event.currentTarget.reset();
+  showToast('New palette saved.');
 };
 get('save-current').onclick=()=>{
   manualSave=true;
@@ -515,6 +516,7 @@ document.addEventListener('keydown',event=>{
 get('final-lineup').onclick=()=>{
   const id=viewed;
   change(target=>{if(target.saved.some(item=>item.id===id))target.finalId=id;});
+  showToast('Lineup marked final.');
 };
 get('delete-lineup').onclick=()=>{
   if(!confirm('Delete this saved lineup?'))return;
@@ -524,6 +526,7 @@ get('delete-lineup').onclick=()=>{
     target.saved=target.saved.filter(item=>item.id!==id);
     if(target.finalId===id)target.finalId=null;
   });
+  showToast('Lineup deleted.');
 };
 get('share').onclick=async()=>{
   const url=new URL('/',location.origin);
