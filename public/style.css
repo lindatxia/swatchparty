@@ -21,7 +21,7 @@ a, .text-button{color:var(--ink);text-decoration:underline;text-underline-offset
 .toolbar{justify-content:space-between;border-top:1px solid var(--line);padding:14px 0 8px;margin-bottom:clamp(16px,2.5vw,30px)}
 .palette-tools{gap:10px}
 .palette-picker{display:grid;align-items:center;position:relative}
-.palette-picker select{appearance:none;padding-inline:63px 34px;min-height:44px;min-width:184px}
+.palette-picker select{appearance:none;inline-size:min(236px,calc(100vw - 24px));min-height:44px;padding-inline:61px;align-items:center;justify-content:center;text-align:center;text-align-last:center;line-height:1.25}
 .palette-picker::after{content:"";position:absolute;right:15px;width:7px;height:7px;border:solid var(--muted);border-width:0 1.5px 1.5px 0;transform:translateY(-2px) rotate(45deg);pointer-events:none}
 .palette-dots{position:absolute;left:10px;display:flex;pointer-events:none}
 .palette-dots i{width:16px;height:16px;border-radius:50%;background:var(--swatch);border:2px solid var(--page)}
@@ -30,7 +30,7 @@ a, .text-button{color:var(--ink);text-decoration:underline;text-underline-offset
   .palette-picker select,.palette-picker select::picker(select){appearance:base-select}
   .palette-picker select::picker-icon{display:none}
   .palette-picker select::picker(select){padding:4px;border:1px solid var(--line);border-radius:14px;background:var(--page);color:var(--ink);margin-top:4px}
-  .palette-picker option{padding:6px 8px;border-radius:8px;gap:8px}
+  .palette-picker option{padding:6px 8px;border-radius:8px;gap:8px;text-align:start;text-align-last:start}
   .palette-picker option::checkmark{order:1;margin-inline-start:auto}
   .palette-picker option:is(:hover,:focus-visible){background:var(--soft)}
 }
@@ -63,17 +63,23 @@ a, .text-button{color:var(--ink);text-decoration:underline;text-underline-offset
 .preview .missing{align-self:center;color:var(--muted);text-align:center}
 .selected-color{display:inline-block;flex:none;width:12px;height:12px;background:var(--swatch);border-radius:55% 45% 58% 42%;border:1px solid #0002}
 .options{display:grid;grid-template-columns:minmax(0,1fr);gap:8px;margin:12px 0 9px}
-.option{min-width:0;padding:9px;border:1px solid var(--line);border-radius:15px 13px 16px 12px}
+.option{container-type:inline-size;min-width:0;padding:9px;border:1px solid var(--line);border-radius:15px 13px 16px 12px}
 .option[aria-current=true]{background:var(--soft);border-color:#89566f;box-shadow:inset 0 0 0 1px #89566f}
-.option-head{display:flex;align-items:flex-start;flex-wrap:wrap;justify-content:space-between;gap:6px;margin-bottom:7px}
+.option-head{display:grid;grid-template-columns:minmax(0,1fr) 82px;align-items:start;gap:6px;margin-bottom:7px}
 .option-details{display:grid;min-width:0;gap:1px}
-.option-head .pick{min-height:0;text-align:left;padding:0;font-weight:700;text-decoration:none;overflow-wrap:anywhere}
+.option-head .pick{display:block;min-width:0;min-height:0;text-align:left;padding:0;font-weight:700;text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .option-head .pick:is(:hover,:focus-visible){background:transparent;color:#89566f}
 .option-head .pick:focus-visible{outline:none;text-decoration:underline;text-underline-offset:3px}
-.option-shade{display:flex;align-items:center;gap:5px;color:var(--muted);font-size:.86rem}
+.option-shade{display:flex;align-items:center;gap:5px;min-width:0;color:var(--muted);font-size:.86rem}
+.shade-name{min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 .option[aria-current=true] .option-shade{color:var(--ink);font-weight:700}
 .option-head .size{font-size:.83rem;color:var(--muted)}
-.option-actions{display:flex;gap:4px;margin-left:auto}
+.option-actions{display:grid;grid-template-columns:34px 44px;gap:4px;min-height:34px;justify-self:end}
+.option-actions .retailer-link{grid-column:1;grid-row:1}
+.option-actions .edit-option{grid-column:2;grid-row:1}
+@container (max-width:180px){
+  .option-head{grid-template-columns:minmax(0,1fr)}
+}
 .retailer-link,.edit-option{display:inline-grid;place-items:center;min-height:34px;border:1px solid var(--line);border-radius:11px;background:var(--page);text-decoration:none}
 .retailer-link{width:34px;font-size:1.2rem;line-height:1;font-weight:700}
 .edit-option{padding:4px 8px;font-size:.89rem}
