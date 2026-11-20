@@ -556,9 +556,36 @@ fields.url.addEventListener('input',()=>{
   if(info.style)fields.style.value=info.style;
 });
 get('cancel-dress').onclick=()=>get('dress-dialog').close();
-async function upload(file) {
-  if(file.size>3_000_000)throw new Error('Choose an image smaller than 3 MB.');
-  return (await (await request('?upload',{method:'POST',body:file})).json()).photo;
+async function uploadBackdrop(file) {
+  const imageTypes=['image/jpeg','image/png','image/webp'];
+  if(file.type && !imageTypes.includes(file.type))throw new Error('Choose a JPEG, PNG, or WebP image.');
+  const image=new Image();
+  let url=URL.createObjectURL(file);
+  try {
+    image.src=url;
+    await image.decode().catch(()=>{throw new Error('This image could not be opened. Try another photo.');});
+    let body=file;
+    if(file.size>3_000_000){
+      const scale=Math.min(1,2000/Math.max(image.naturalWidth,image.naturalHeight));
+      const canvas=document.createElement('canvas');
+      canvas.width=Math.max(1,Math.round(image.naturalWidth*scale));
+      canvas.height=Math.max(1,Math.round(image.naturalHeight*scale));
+      const context=canvas.getContext('2d',{alpha:false});
+      context.fillStyle='#eee8e1';
+      context.fillRect(0,0,canvas.width,canvas.height);
+      context.drawImage(image,0,0,canvas.width,canvas.height);
+      body=await new Promise(resolve=>canvas.toBlob(resolve,'image/jpeg',.82));
+      if(!body || body.size>3_000_000)throw new Error('This image is too large. Try a smaller photo.');
+      URL.revokeObjectURL(url);
+      url=URL.createObjectURL(body);
+    }
+    const {photo}=await (await request('?upload',{method:'POST',body})).json();
+    images.set(photo,Promise.resolve(url));
+    url=null;
+    return photo;
+  } finally {
+    if(url)URL.revokeObjectURL(url);
+  }
 }
 form.onsubmit=async event=>{
   event.preventDefault();
@@ -590,17 +617,24 @@ form.onsubmit=async event=>{
     get('dress-message').textContent=error.message+' You can clear the photo field and save the dress.';
   } finally {submit.disabled=false;}
 };
-get('backdrop').onclick=()=>get('backdrop-file').click();
+get('backdrop').onclick=()=>{
+  get('more-actions').open=false;
+  get('backdrop-file').click();
+};
 get('backdrop-file').onchange=async event=>{
   const file=event.target.files[0];
   event.target.value='';
   if(!file)return;
+  const button=get('backdrop');
+  button.disabled=true;
+  showToast('Uploading backdrop…');
   try {
-    const photo=await upload(file);
+    const photo=await uploadBackdrop(file);
     const start=beginDraft();
     change(target=>{start(target);target.draft.backdrop=photo;});
     showToast('Backdrop updated.');
-  } catch(error) {notice(error.message);}
+  } catch(error) {showToast(error.message);}
+  finally {button.disabled=false;}
 };
 get('plain').onclick=()=>{
   const start=beginDraft();
