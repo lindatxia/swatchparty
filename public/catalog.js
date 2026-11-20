@@ -19,7 +19,7 @@ export const catalog = [
   {style:'Alexia',color:'Sea Moss',variantGroup:'alexia-chiffon',url:url('alexia-sea-moss-a-line-ruched-chiffon-floor-length-bridesmaid-dress/120694489'),photo:'/alexia-sea-moss.jpg'},
   {style:'Gabriela',color:'Dusty Rose',variantGroup:'gabriela-chiffon',url:url('gabriela-dusty-rose-a-line-corset-chiffon-floor-length-bridesmaid-dress/113355548'),photo:'/gabriela-chiffon-dusty-rose.jpg'},
   {style:'Mona',color:'Vintage Mauve',url:url('mona-vintage-mauve-a-line-corset-stretch-satin-floor-length-bridesmaid-dress/126021134'),photo:'/mona-vintage-mauve.jpg'},
-  {style:'Avenelle',color:'Vintage Mauve',listing:'https://www.azazie.com/es/products/azazie-avenelle-vintage-mauve-a-line-corset-stretch-satin-floor-length-bridesmaid-dress/114949292?country=CL',url:url('avenelle-vintage-mauve-a-line-corset-stretch-satin-floor-length-bridesmaid-dress/114949292'),photo:'/avenelle-vintage-mauve.jpg'},
+  {style:'Avenelle',color:'Vintage Mauve',usListing:false,url:url('avenelle-vintage-mauve-a-line-corset-stretch-satin-floor-length-bridesmaid-dress/114949292'),photo:'/avenelle-vintage-mauve.jpg'},
   {style:'Gabriela',color:'Desert Rose',url:url('gabriela-desert-rose-a-line-corset-stretch-satin-floor-length-bridesmaid-dress/132199419'),photo:'/gabriela-satin-desert-rose.jpg'},
   {style:'Juniper',color:'Juniper',variantGroup:'juniper',url:url('juniper-juniper-mermaid-one-shoulder-stretch-satin-floor-length-bridesmaid-dress/98005547'),photo:'/juniper-juniper.jpg'},
   {style:'Gabriela',color:'Willow Green',variantGroup:'gabriela-chiffon',url:url('gabriela-willow-green-a-line-corset-chiffon-floor-length-bridesmaid-dress/113355458'),photo:'/gabriela-chiffon-willow-green.jpg'},
@@ -71,9 +71,15 @@ export function dressColorLink(option,input) {
 }
 export function exactPreview(option,color) {
   const exact=verifiedVariants(option).find(item=>item.color===color);
+  const listing=exact && exact.usListing!==false ? new URL(exact.url) : null;
+  if(listing){
+    listing.searchParams.set('country','US');
+    listing.searchParams.set('currency','USD');
+    listing.searchParams.set('campaigncountry','US_EN');
+  }
   return {
     photo:exact ? exact.photo.replace('.jpg','-cutout.webp') : '',
-    link:exact?.listing??exact?.url??''
+    link:listing?.href??''
   };
 }
 export function initialWorkspace() {
