@@ -52,9 +52,23 @@ async function addColor(listing,imageURL) {
     const mask=join(temp,'mask.png');
     const cutout=join(temp,name+'-cutout.webp');
     const cutter=join(temp,'cutout');
-    run('curl',['--fail','--silent','--show-error','--max-time','20','--max-filesize','10000000','--output',downloaded,image.href]);
-    const height=Number(run('magick',['identify','-ping','-format','%h',downloaded]));
-    if(!(height>=750))throw new Error('Use a full-size photo from the listing, such as its main og:image URL.');
+    const origin=new URL(image);
+    origin.pathname=image.pathname.replace(/^\/upimg\/[^/]+\//,'/upimg/origin/');
+    let sourceURL;
+    for(const candidate of new Set([origin.href,image.href])){
+      try {
+        run('curl',['--fail','--silent','--show-error','--max-time','20','--max-filesize','10000000','--output',downloaded,candidate]);
+        const height=Number(run('magick',['identify','-ping','-format','%h',downloaded]));
+        if(height>=750){
+          sourceURL=candidate;
+          break;
+        }
+      } catch {
+        // Try the exact supplied CDN URL if the original is unavailable.
+      }
+    }
+    if(!sourceURL)throw new Error('Could not download a full-size photo from the supplied Azazie CDN URL.');
+    console.log('Downloaded '+sourceURL);
     run('magick',[downloaded,'-auto-orient','-colorspace','sRGB','-quality','95',original]);
     run('clang',[fileURLToPath(new URL('./cutout.m',import.meta.url)),'-framework','Foundation','-framework','Vision','-framework','CoreImage','-framework','CoreVideo','-framework','CoreGraphics','-o',cutter]);
     run(cutter,[original,mask]);

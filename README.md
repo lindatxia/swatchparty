@@ -41,4 +41,4 @@ On a Mac with Xcode Command Line Tools and ImageMagick installed, run:
 npm run add-color -- '<Azazie listing URL>' '<official Azazie photo URL>'
 ```
 
-The script saves the photo and transparent cutout under `public/` and adds the shade to the catalog. Review the cutout, then commit the catalog and its two image files and push to deploy. This workflow runs locally.
+The script downloads directly from the Azazie image CDN. It tries the full-resolution `origin` image first and falls back to the supplied CDN URL. It saves the photo and transparent cutout under `public/` and adds the shade to the catalog. Review the cutout, then commit the catalog and its two image files and push to deploy. This workflow runs locally.
