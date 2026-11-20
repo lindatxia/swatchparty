@@ -77,8 +77,7 @@ export function exactPreview(option,color) {
 }
 export function initialWorkspace() {
   const options = [
-    [1,2],[1,3],[2,8],[2,1],[3,4],[3,5],[4,6],
-    [4,10],[4,9]
+    [1,2],[1,3],[2,8],[2,1],[3,4],[3,5],[4,6]
   ].map(([person,index,color,photo],i)=>{
     const item=catalog[index];
     return {id:'pick-'+i,person,...item,color:color??item.color,photo:photo??(!color||color===item.color?item.photo:''),

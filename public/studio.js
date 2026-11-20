@@ -8,6 +8,10 @@ const fragment=new URLSearchParams(location.hash.slice(1));
 const key=fragment.get('workspace')??sessionStorage.getItem('swatch-workspace')??'';
 const firstLook=(options,person)=>options.find(option=>option.person===person);
 const selectedOption=(options,look)=>options.find(option=>option.id===look?.option);
+function dressGroup(option){
+  const styleKey=readProduct(option.url)?.styleKey;
+  return styleKey?JSON.stringify([option.person,option.style,styleKey,option.size.trim().toUpperCase()]):option.id;
+}
 const images=new Map();
 const edits=[];
 let server, state, saving=false, failed=false, viewed=null, dressPerson, dressId;
@@ -123,7 +127,12 @@ function card(person,index,draft,options) {
     ? '<img data-photo="'+html(preview.photo)+'" alt="'+html(option.style+' in '+look.color)+'">'
     : '<span class="missing">'+(option?'Exact photo unavailable':'No dress selected')+'</span>';
   const liveOptions=state.options.filter(item=>item.person===index);
-  const picks=option&&!liveOptions.some(item=>item.id===option.id)?[option,...liveOptions]:liveOptions;
+  const grouped=new Map();
+  for(const item of liveOptions){
+    const key=dressGroup(item);
+    if(!grouped.has(key) || item.id===look?.option)grouped.set(key,item);
+  }
+  const picks=option&&!liveOptions.some(item=>item.id===option.id)?[option,...grouped.values()]:[...grouped.values()];
   const cards=picks.map(item=>{
     const chosen=item.id===look?.option;
     const display=chosen?option:item;
@@ -135,7 +144,8 @@ function card(person,index,draft,options) {
     const savedOnly=!liveOptions.some(live=>live.id===item.id);
     const verified=new Set(verifiedVariants(display).map(variant=>variant.color));
     const shades=[...new Set([...palettes[draft.palette],...verified])].filter(color=>verified.has(color));
-    const pending=(display.colorLinks??[]).filter(item=>!verified.has(item.color));
+    const pending=[...new Set([display,...liveOptions.filter(live=>dressGroup(live)===dressGroup(item))]
+      .flatMap(entry=>(entry.colorLinks??[]).map(link=>link.color)).filter(color=>!verified.has(color)))];
     const addColor=savedOnly?'':'<button type="button" class="text-button add-color" data-add-color="'+item.id+
       '" id="add-color-'+item.id+'" aria-label="Add color to '+html(display.style)+'">+ Color</button>';
     return '<div class="option" aria-current="'+chosen+'"><div class="option-head">'+
@@ -152,7 +162,7 @@ function card(person,index,draft,options) {
         '" aria-pressed="'+(chosen&&look.color===shade)+'" data-pick="'+item.id+'" data-color="'+html(shade)+
         '" id="sw-'+item.id+'-'+Object.keys(colors).indexOf(shade)+'"'+(savedOnly?' disabled':'')+'></button>').join('')+
       '</div>':'<p class="pending-photo">No verified colors yet</p>')+
-      (pending.length?'<p class="pending-photo">Awaiting photo: '+html(pending.map(item=>item.color).join(', '))+'</p>':'')+
+      (pending.length?'<p class="pending-photo">Awaiting photo: '+html(pending.join(', '))+'</p>':'')+
       addColor+'</div>';
   }).join('');
   return '<article class="card">'+heading+'<div class="preview">'+label+
@@ -358,9 +368,11 @@ function openDress(person,option) {
     remove.onclick=()=>{
       if(!confirm('Delete this dress option?'))return;
       const prior=state.draft.looks[person];
+      const removed=state.options.filter(item=>dressGroup(item)===dressGroup(option));
+      const ids=new Set(removed.map(item=>item.id));
       change(target=>{
-        target.options=target.options.filter(item=>item.id!==option.id);
-        if(target.draft.looks[person]?.option===option.id){
+        target.options=target.options.filter(item=>!ids.has(item.id));
+        if(ids.has(target.draft.looks[person]?.option)){
           const replacement=firstLook(target.options,person);
           target.draft.looks[person]=replacement?{option:replacement.id,color:replacement.color}:null;
         }
@@ -368,8 +380,8 @@ function openDress(person,option) {
       get('dress-dialog').close();
       showToast('Dress deleted.',()=>{
         change(target=>{
-          if(!target.options.some(item=>item.id===option.id))target.options.push(option);
-          if(prior?.option===option.id)target.draft.looks[person]=prior;
+          for(const item of removed)if(!target.options.some(live=>live.id===item.id))target.options.push(item);
+          if(ids.has(prior?.option))target.draft.looks[person]=prior;
         });
       });
     };
