@@ -281,7 +281,14 @@ colorForm.onsubmit=event=>{
     get('color-message').textContent='Paste a link for this style and fabric in the new color.';
     return;
   }
-  if(variant.verified){
+  const fromEdit=dressDialog.open && dressId===option.id;
+  if(variant.verified && fromEdit){
+    if(!Array.from(fields.color.options).some(item=>item.value===variant.color)){
+      get('color-message').textContent='Save your dress link changes before selecting this color.';
+      return;
+    }
+    fields.color.value=variant.color;
+  } else if(variant.verified){
     const start=beginDraft();
     change(target=>{
       start(target);
@@ -294,10 +301,12 @@ colorForm.onsubmit=event=>{
       if(!live || !dressColorLink(live,variant.url))return;
       live.colorLinks=[...(live.colorLinks??[]).filter(item=>item.color!==variant.color),{color:variant.color,url:variant.url}];
     });
-    showToast(variant.color+' added for photo verification.');
+    const message=variant.color+' added for photo verification.';
+    if(fromEdit)get('dress-message').textContent=message;
+    else showToast(message);
   }
   colorDialog.close();
-  get('add-color-'+option.id)?.focus({preventScroll:true});
+  get(fromEdit?'edit-add-color':'add-color-'+option.id)?.focus({preventScroll:true});
 };
 const dressDialog=get('dress-dialog');
 const form=get('dress-form');
@@ -316,6 +325,10 @@ dressDialog.addEventListener('click',event=>{
   pressedBackdrop=false;
 });
 const fields=form.elements;
+get('edit-add-color').onclick=()=>{
+  const option=state.options.find(item=>item.id===dressId);
+  if(option)openColor(option);
+};
 function showDressColors(info,preferred) {
   const variants=verifiedVariants(info);
   const known=variants.map(item=>item.color);
@@ -334,6 +347,7 @@ function openDress(person,option) {
   showDressColors(option&&readProduct(option.url),option?.color);
   fields.size.value=option?.size??'';
   fields.size.required=!option?.id;
+  get('edit-add-color').hidden=!option;
   form.querySelector('[data-delete]')?.remove();
   if(option) {
     const remove=document.createElement('button');

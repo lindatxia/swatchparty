@@ -56,7 +56,10 @@
       <label>Azazie URL <input name="url" type="url" required placeholder="https://www.azazie.com/products/…"></label>
       <div class="form-row">
         <label>Style <input name="style" required maxlength="80"></label>
-        <label>Color <select name="color" required></select></label>
+        <div class="dress-color-field">
+          <div class="dress-color-heading"><label for="dress-color">Color</label><button id="edit-add-color" class="text-button" type="button" hidden>+ Color</button></div>
+          <select id="dress-color" name="color" required></select>
+        </div>
         <label>Size <input name="size" maxlength="24" placeholder="A4" required></label>
       </div>
       <p id="dress-message" role="status"></p>
