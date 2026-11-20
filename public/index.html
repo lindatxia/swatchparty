@@ -27,21 +27,22 @@
           </div>
         </div>
         <div class="actions toolbar-actions">
-          <button id="backdrop">Set backdrop</button>
-          <button id="plain" hidden>Plain background</button>
-          <button id="share">Share</button>
-          <button id="download" type="button">Download PDF</button>
+          <button id="save-current" type="button">Save</button>
+          <button id="save-lineup" type="button">Save as</button>
+          <details id="more-actions" class="more-actions">
+            <summary aria-label="More actions" title="More actions"><span aria-hidden="true">⋮</span></summary>
+            <div class="more-panel">
+              <button id="backdrop" type="button">Set backdrop</button>
+              <button id="plain" type="button" hidden>Plain background</button>
+              <button id="share" type="button">Share</button>
+              <button id="download" type="button">Download PDF</button>
+              <button id="final-lineup" type="button" hidden>Mark final</button>
+              <button id="delete-lineup" type="button" hidden>Delete lineup</button>
+            </div>
+          </details>
           <input id="backdrop-file" type="file" accept="image/png,image/jpeg,image/webp" hidden>
         </div>
       </nav>
-      <div class="lineup-tools">
-        <div class="actions">
-          <button id="save-lineup" type="button">Save as new</button>
-          <button id="update-lineup" type="button" hidden>Update lineup</button>
-          <button id="final-lineup" type="button" hidden>Mark final</button>
-          <button id="delete-lineup" type="button" hidden>Delete lineup</button>
-        </div>
-      </div>
       <p id="notice" role="status" hidden></p>
       <div class="lineup-scroll" tabindex="0" aria-label="Bridesmaid lineup">
         <section id="lineup" aria-label="Dress comparison"></section>

@@ -17,11 +17,12 @@ button:disabled{opacity:.6;cursor:wait}
 :focus-visible{outline:2px solid #75415c;outline-offset:3px}
 a, .text-button{color:var(--ink);text-decoration:underline;text-underline-offset:3px}
 .text-button{min-height:33px;border:0;background:none;padding:2px 4px}
-.toolbar,.palette-tools,.lineup-tools,.actions{display:flex;align-items:center;flex-wrap:wrap;gap:8px 14px}
+.toolbar,.palette-tools,.actions{display:flex;align-items:center;flex-wrap:wrap;gap:8px 14px}
 .toolbar{justify-content:space-between;border-top:1px solid var(--line);padding:14px 0 8px}
 .palette-tools{gap:10px}
 .palette-picker{display:grid;align-items:center;position:relative}
-.palette-picker select{padding-inline-start:76px;min-height:44px;min-width:184px}
+.palette-picker select{appearance:none;padding-inline:76px 36px;min-height:44px;min-width:184px}
+.palette-picker::after{content:"";position:absolute;right:15px;width:7px;height:7px;border:solid var(--muted);border-width:0 1.5px 1.5px 0;transform:translateY(-2px) rotate(45deg);pointer-events:none}
 .palette-dots{position:absolute;left:12px;display:flex;pointer-events:none}
 .palette-dots i{width:18px;height:18px;border-radius:50%;background:var(--swatch);border:2px solid var(--page)}
 .palette-dots i+i{margin-left:-6px}
@@ -31,7 +32,13 @@ a, .text-button{color:var(--ink);text-decoration:underline;text-underline-offset
 #saved-check{font-weight:700}
 .toolbar-actions{margin-left:auto;justify-content:flex-end}
 .toolbar-actions button{min-height:44px}
-.lineup-tools{padding:4px 0 14px;color:var(--muted);font-size:.92rem}
+.more-actions{position:relative}
+.more-actions summary{display:grid;place-items:center;list-style:none;min-width:44px;height:44px;border:1px solid var(--line);border-radius:16px;background:var(--page);font-size:1.5rem;line-height:1;cursor:pointer}
+.more-actions summary::-webkit-details-marker{display:none}
+.more-actions summary:hover,.more-actions[open] summary{background:var(--soft)}
+.more-panel{position:absolute;right:0;top:calc(100% + 7px);z-index:5;min-width:170px;display:grid;gap:2px;padding:5px;border:1px solid var(--line);border-radius:15px;background:var(--page);box-shadow:0 6px 20px #381b2918}
+.toolbar-actions .more-panel button{min-height:36px;text-align:left;border:0;border-radius:10px;white-space:nowrap}
+.toolbar-actions #delete-lineup:hover{color:#8d2531;background:#f8e5e7}
 .toast{display:flex;align-items:center;gap:12px;position:fixed;left:max(16px,env(safe-area-inset-left));bottom:max(16px,env(safe-area-inset-bottom));z-index:10;max-width:calc(100vw - 32px);padding:10px 16px;border-radius:14px;background:var(--ink);color:var(--page);opacity:0;transform:translateY(8px);pointer-events:none;transition:opacity .18s ease,transform .18s ease}
 .toast.visible{opacity:1;transform:translateY(0);pointer-events:auto}
 #toast-undo{background:transparent;color:inherit;border-color:#ffffff70;min-height:34px}
@@ -88,7 +95,7 @@ dialog .actions{justify-content:end}
   .preview,.scene{height:clamp(225px,64vw,360px)}
   .form-row{grid-template-columns:1fr}
   .actions{gap:5px 8px}
-  .toolbar-actions{margin-left:0;justify-content:flex-start}
+  .toolbar-actions{margin-left:auto;justify-content:flex-end}
 }
 
 .pending-photo{margin-top:5px;color:var(--muted);font-size:.86rem}

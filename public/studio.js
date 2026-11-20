@@ -12,7 +12,7 @@ const images=new Map();
 const edits=[];
 let server, state, saving=false, failed=false, viewed=null, dressPerson, dressId;
 let renderVersion=0;
-let toastTimer;
+let toastTimer, editingSnapshot=null, manualSave=false;
 
 function hideToast() {
   clearTimeout(toastTimer);
@@ -86,6 +86,10 @@ async function save() {
     showStatus();
   }
   if(!failed && edits.length)void save();
+  else if(!failed && manualSave){
+    manualSave=false;
+    showToast('Lineup saved.');
+  }
 }
 function change(edit,focus) {
   edits.push(edit);
@@ -167,7 +171,6 @@ function render(focus) {
     return options.length?'<optgroup label="'+html(palette)+'">'+selectOptions(options,selected)+'</optgroup>':'';
   }).join('');
   get('palette').innerHTML=mainOptions+savedOptions;
-  get('update-lineup').hidden=!viewed;
   get('final-lineup').hidden=!viewed;
   get('final-lineup').disabled=viewed===state.finalId;
   get('final-lineup').textContent=viewed===state.finalId?'Final lineup':'Mark final';
@@ -192,6 +195,7 @@ function render(focus) {
 }
 function beginDraft() {
   const snapshot=state.saved.find(item=>item.id===viewed);
+  if(snapshot)editingSnapshot=snapshot.id;
   viewed=null;
   const copiedIds=new Map(snapshot?.options.map(item=>[item.id,crypto.randomUUID()]));
   return target=>{
@@ -214,6 +218,7 @@ function beginDraft() {
 }
 get('palette').onchange=event=>{
   const value=event.target.value;
+  editingSnapshot=null;
   if(value.startsWith('lineup:')){
     viewed=value.slice(7);
     render();
@@ -376,18 +381,44 @@ get('name-form').onsubmit=event=>{
   if(!field.value.trim())return;
   const item=snapshot(field.value.trim(),crypto.randomUUID());
   viewed=item.id;
+  editingSnapshot=null;
   change(target=>{target.saved.push(item);});
   get('name-dialog').close();
   event.currentTarget.reset();
 };
-get('update-lineup').onclick=()=>{
-  const item=state.saved.find(item=>item.id===viewed);
-  if(!item || !confirm('Replace this saved lineup with the current draft?'))return;
-  viewed=null;
-  const replacement=snapshot(item.name,item.id);
-  viewed=item.id;
-  change(target=>{target.saved=target.saved.map(saved=>saved.id===item.id?replacement:saved);});
+get('save-current').onclick=()=>{
+  manualSave=true;
+  const previous=state.saved.find(item=>item.id===editingSnapshot);
+  if(failed){
+    failed=false;
+    notice('');
+    refreshState();
+  }
+  if(previous){
+    const replacement=snapshot(previous.name,previous.id);
+    editingSnapshot=null;
+    viewed=previous.id;
+    change(target=>{target.saved=target.saved.map(item=>item.id===previous.id?replacement:item);});
+  } else if(!edits.length){
+    change(()=>{});
+  } else {
+    render();
+    void save();
+  }
 };
+const moreActions=get('more-actions');
+moreActions.addEventListener('click',event=>{
+  if(event.target.closest('button'))moreActions.open=false;
+});
+document.addEventListener('pointerdown',event=>{
+  if(moreActions.open && !moreActions.contains(event.target))moreActions.open=false;
+});
+document.addEventListener('keydown',event=>{
+  if(event.key==='Escape' && moreActions.open){
+    moreActions.open=false;
+    moreActions.querySelector('summary').focus();
+  }
+});
 get('final-lineup').onclick=()=>{
   const id=viewed;
   change(target=>{if(target.saved.some(item=>item.id===id))target.finalId=id;});
