@@ -226,9 +226,15 @@ async function refreshCatalog() {
     const url=new URL('./catalog.js',import.meta.url);
     const response=await fetch(url,{method:'HEAD',cache:'no-store'});
     if(!response.ok)return;
-    const tag=response.headers.get('etag')??response.headers.get('last-modified')??String(Date.now());
+    const validator=response.headers.get('etag')??response.headers.get('last-modified');
+    let tag=validator;
+    if(!tag){
+      const source=await fetch(url,{cache:'no-store'});
+      if(!source.ok)return;
+      tag=await source.text();
+    }
     if(tag===catalogTag)return;
-    url.searchParams.set('revision',tag);
+    url.searchParams.set('revision',validator??String(Date.now()));
     const {catalog:latest}=await import(url.href);
     if(document.querySelector('dialog[open]'))return;
     catalogTag=tag;
