@@ -9,7 +9,8 @@
   "scripts": {
     "dev": "node server/local.js",
     "test": "node --test",
-    "build": "node server/build.js"
+    "build": "node server/build.js",
+    "add-color": "node scripts/add-azazie-color.mjs"
   },
   "engines": {
     "node": "24.x"

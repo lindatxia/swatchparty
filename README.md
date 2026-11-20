@@ -32,3 +32,13 @@ The local SQLite workspace and deployed Postgres workspace are separate stores. 
 Verified Azazie photos are bundled with transparent cutouts for the exact style, fabric, and shade. Adding a color link makes its swatch selectable immediately. Selecting a shade with a pending photo shows a message in the preview. The app checks for catalog updates every few seconds while that preview is visible and replaces the message when the exact cutout is available. Photos and cutouts are published through the catalog. The lineup and PDF use exact catalog photos only.
 
 Use **Set backdrop** to upload the shared background. The Mountain Terrace candidate is not bundled.
+
+To publish an exact photo for a new shade, open the matching Azazie listing in a browser and copy its main photo URL from the page's `og:image` tag. Use the full-size image from that listing. The script checks the URL and image size, so visually confirm that the photo matches the style, fabric, and shade before publishing.
+
+On a Mac with Xcode Command Line Tools and ImageMagick installed, run:
+
+```sh
+npm run add-color -- '<Azazie listing URL>' '<official Azazie photo URL>'
+```
+
+The script saves the photo and transparent cutout under `public/` and adds the shade to the catalog. Review the cutout, then commit the catalog and its two image files and push to deploy. This workflow runs locally.
