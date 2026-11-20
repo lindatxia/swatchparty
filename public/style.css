@@ -75,7 +75,7 @@ a, .text-button{color:var(--ink);text-decoration:underline;text-underline-offset
 .dress-menu summary::-webkit-details-marker{display:none}
 .dress-menu summary:hover,.dress-menu[open] summary{background:var(--soft);color:#89566f}
 .dress-menu > div{position:absolute;z-index:1;right:0;top:100%;padding:4px;background:var(--page);border:1px solid var(--line);border-radius:12px}
-.dress-menu button{white-space:nowrap}
+.dress-menu button{border:0;white-space:nowrap}
 .option-details{display:grid;min-width:0;gap:1px}
 .option-head .pick{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .option-shade{display:flex;align-items:center;gap:5px;min-width:0;color:var(--muted);font-size:.86rem}
