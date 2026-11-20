@@ -420,7 +420,7 @@ function openDress(person,option) {
     const remove=document.createElement('button');
     remove.type='button';
     remove.dataset.delete='true';
-    remove.textContent='Delete dress';
+    remove.innerHTML='<span aria-hidden="true">🗑️</span> Delete dress';
     remove.onclick=()=>{
       if(!confirm('Delete this dress option?'))return;
       const prior=state.draft.looks[person];
