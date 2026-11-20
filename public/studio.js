@@ -147,7 +147,7 @@ function card(person,index,draft,options) {
   const pendingPreview=option && !preview.photo && linkedColors(option,options).some(link=>link.color===look.color);
   const label=preview.photo
     ? '<img data-photo="'+html(preview.photo)+'" alt="'+html(option.style+' in '+look.color)+'">'
-    : pendingPreview?'<span class="missing" data-pending-preview>Image is downloading... check back in a bit!</span>':
+    : pendingPreview?'<span class="missing" data-pending-preview>Azazie photo pending</span>':
       '<span class="missing">'+(option?'Exact photo unavailable':'No dress selected')+'</span>';
   const liveOptions=state.options.filter(item=>item.person===index);
   const grouped=new Map();
@@ -473,7 +473,7 @@ colorForm.onsubmit=async event=>{
     if(dressDialog.open && dressId===option.id)dressDialog.close();
     render();
     get('lineup').querySelector('[data-edit="'+CSS.escape(option.id)+'"]')?.focus({preventScroll:true});
-    showToast(variant.verified?variant.color+' added.':'Processing new color…');
+    showToast(variant.verified?variant.color+' added.':variant.color+' added. Photo pending.');
   } catch(error) {
     if(colorDialog.open)message.textContent=error.message;
     else showToast(error.message);
