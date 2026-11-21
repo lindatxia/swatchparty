@@ -233,7 +233,7 @@ function render(focus) {
   get('palette').innerHTML=mainOptions+savedOptions;
   get('final-lineup').hidden=!viewed;
   get('final-lineup').disabled=viewed===state.finalId;
-  get('final-lineup').textContent=viewed===state.finalId?'Final lineup':'Mark final';
+  get('final-lineup').querySelector('span').textContent=viewed===state.finalId?'Final lineup':'Mark final';
   get('delete-lineup').hidden=!viewed;
   get('plain').hidden=!draft.backdrop;
   get('lineup').innerHTML=displayOrder.map(index=>card(people[index],index,draft,options)).join('');
