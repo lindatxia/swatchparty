@@ -1,6 +1,6 @@
 # Swatch Party
 
-A shared bridesmaid dress lineup with autosave, Azazie submissions, named palette snapshots, and landscape PDF export.
+A shared bridesmaid dress lineup with autosave, Azazie and Birdy Grey submissions, named palette snapshots, and landscape PDF export.
 
 ## Local preview
 
@@ -29,16 +29,23 @@ The local SQLite workspace and deployed Postgres workspace are separate stores. 
 
 ## Photo previews
 
-Verified Azazie photos are bundled with transparent cutouts for the exact style, fabric, and shade. Adding a color link makes its swatch selectable immediately. Selecting a shade with a pending photo shows a message in the preview. The app checks for catalog updates every few seconds while that preview is visible and replaces the message when the exact cutout is available. Photos and cutouts are published through the catalog. The lineup and PDF use exact catalog photos only.
+Paste an Azazie or Birdy Grey dress URL to add it. For Birdy Grey, use the product page for the exact fabric and shade, such as Violet Chiffon in Dark Mauve. Add another shade using **Edit dress → Add another color** and paste its product URL. Supported Birdy Grey links use the style-fabric-dress-color format.
 
-Use **Set backdrop** to upload the shared background. The Mountain Terrace candidate is not bundled.
+Attach an optional transparent PNG or WebP (up to 3 MB) in **Add a dress** or **Edit dress**. The file applies to the shade selected in the form. Use the photo for that exact shade. Save the lineup to share it with other devices. The cutout appears over the backdrop and in the PDF. If a shade has neither an uploaded cutout nor a catalog photo, the preview shows that a cutout is pending.
 
-To publish an exact photo for a new shade, open the matching Azazie listing in a browser and copy its main photo URL from the page's `og:image` tag. Use the full-size image from that listing. The script checks the URL and image size, so visually confirm that the photo matches the style, fabric, and shade before publishing.
+Use **Set backdrop** to upload the shared background.
 
-On a Mac with Xcode Command Line Tools and ImageMagick installed, run:
+### Publish a reusable catalog cutout
+
+Use the CLI to make an exact variant available to every lineup. Install ImageMagick. On macOS 14 or later with Xcode Command Line Tools, the script can generate the cutout with Apple Vision. On other platforms, supply an existing transparent cutout as the third argument.
 
 ```sh
-npm run add-color -- '<Azazie listing URL>' '<official Azazie photo URL>'
+npm run add-color -- '<dress URL>' - '<transparent cutout.png>'
+npm run add-color -- '<dress URL>' '<official photo URL>'
 ```
 
-The script downloads directly from the Azazie image CDN. It tries the full-resolution `origin` image first and falls back to the supplied CDN URL. It saves the photo and transparent cutout under `public/` and adds the shade to the catalog. Review the cutout, then commit the catalog and its two image files and push to deploy. This workflow runs locally.
+The dash reads the official product page image. If its metadata can't verify the style and shade, pass the official photo URL as shown in the second example. The script validates the retailer's image host and rejects opaque cutouts. Review the original and transparent WebP in `public/` for the exact style, fabric, and shade before committing those assets and the catalog entry. Bundle only photos you have permission to use.
+
+### Add another retailer
+
+Register a retailer in `public/retailers.js`. Its adapter supplies its product hosts and path rules, parser for style/fabric/shade, catalog key, listing link, and permitted image origins. Keep the style key independent of shade and include fabric where the retailer sells the same style in multiple fabrics. Add fixtures for multiple shades, a different fabric, and rejected lookalike domains. The catalog, shared workspace, lineup, and PDF use the same adapter-backed data.

@@ -1,5 +1,6 @@
 import {createHash,randomUUID,timingSafeEqual} from 'node:crypto';
-import {catalog,colors,palettes,people,productURL,dressColorLink} from '../public/catalog.js';
+import {catalog,colors,palettes,people,readProduct,dressColorLink,verifiedVariants} from '../public/catalog.js';
+import {azazie,retailerProduct,retailerPhotoURL,listingPhoto} from '../public/retailers.js';
 import {openStore} from './store.js';
 
 const imageTypes = ['image/jpeg','image/png','image/webp'];
@@ -12,19 +13,31 @@ const idPattern = /^[a-zA-Z0-9-]{1,64}$/;
 const validId = value => typeof value==='string' && idPattern.test(value);
 const isPhoto = value => value==='' || seedPhotos.has(value) || typeof value==='string' && assetPattern.test(value);
 const isBackdrop = value => value==='' || typeof value==='string' && assetPattern.test(value);
-const isColor = value => typeof value==='string' && own(colors,value);
+const colorLinkLimit=option=>retailerProduct(option.url)?.retailer.fixedSwatches?Object.keys(colors).length:100;
+const isAsset = value => typeof value==='string' && assetPattern.test(value);
+const isColor = (option,color) => string(color,80) && (retailerProduct(option.url)?.retailer.fixedSwatches
+  ? own(colors,color)
+  : readProduct(option.url)?.color===color || option.colorLinks?.some(item=>item.color===color) ||
+    verifiedVariants(option).some(item=>item.color===color));
 const validColorLinks=option=>option.colorLinks===undefined ||
-  Array.isArray(option.colorLinks) && option.colorLinks.length<=Object.keys(colors).length &&
+  Array.isArray(option.colorLinks) && option.colorLinks.length<=colorLinkLimit(option) &&
   new Set(option.colorLinks.map(item=>item?.color)).size===option.colorLinks.length &&
-  option.colorLinks.every(item=>item && isColor(item.color) && string(item.url,1200) &&
+  option.colorLinks.every(item=>item && string(item.url,1200) &&
     dressColorLink(option,item.url)?.color===item.color);
+const validCutouts=option=>option.cutouts===undefined ||
+  Array.isArray(option.cutouts) && option.cutouts.length<=100 &&
+  new Set(option.cutouts.map(item=>item?.color)).size===option.cutouts.length &&
+  option.cutouts.every(item=>item && isAsset(item.photo) && string(item.url,1200) &&
+    dressColorLink(option,item.url)?.color===item.color && isColor(option,item.color));
 const validOption = option => option && validId(option.id) && Number.isInteger(option.person) &&
   option.person>=0 && option.person<people.length && string(option.style,80) && option.style.trim() &&
-  isColor(option.color) && (option.lastColor===undefined || isColor(option.lastColor)) && (option.sourceColor==='' || string(option.sourceColor,40)) &&
-  isColor(option.urlColor) && string(option.size,24) && string(option.url,1200) && productURL(option.url) && isPhoto(option.photo) && validColorLinks(option);
+  string(option.url,1200) && retailerProduct(option.url) && validColorLinks(option) &&
+  isColor(option,option.color) && (option.lastColor===undefined || isColor(option,option.lastColor)) &&
+  string(option.sourceColor,80) && isColor(option,option.urlColor) && string(option.size,24) &&
+  isPhoto(option.photo) && validCutouts(option);
 const validDraft = (draft,options) => draft && typeof draft.palette==='string' && own(palettes,draft.palette) && isBackdrop(draft.backdrop) &&
   Array.isArray(draft.looks) && draft.looks.length===people.length && draft.looks.every((look,index)=>
-    look===null || look && isColor(look.color) && options.some(option=>option.id===look.option && option.person===index));
+    look===null || look && options.some(option=>option.id===look.option && option.person===index && isColor(option,look.color)));
 const validOptions = (options,limit) => Array.isArray(options) && options.length<=limit && options.every(validOption) &&
   new Set(options.map(item=>item.id)).size===options.length;
 export function validState(state) {
@@ -58,31 +71,16 @@ function imageMime(bytes) {
   if(bytes.toString('ascii',0,4)==='RIFF' && bytes.toString('ascii',8,12)==='WEBP')return 'image/webp';
   return '';
 }
-function photoURL(input) {
-  try {
-    const link=new URL(input);
-    if(link.protocol==='https:' && /^cdn-\d+\.azazie\.com$/.test(link.hostname) && !link.port &&
-       !link.username && !link.password && /^\/upimg\/[a-zA-Z0-9/._-]+$/.test(link.pathname))return link;
-  } catch {}
-  return null;
-}
 async function importImage(input) {
-  let link=photoURL(input.url);
+  let link=retailerPhotoURL(input.url,azazie);
   if(input.product===true) {
-    const product=productURL(input.url);
+    const product=retailerProduct(input.url);
     if(!product || !string(input.color,40) || !string(input.style,80))return null;
-    const page=await fetch(product,{redirect:'error',signal:AbortSignal.timeout(5000)});
+    const page=await fetch(product.url,{redirect:'error',signal:AbortSignal.timeout(5000)});
     if(!page.ok)return null;
     const markup=(await boundedBytes(page.body,2_000_000)).toString('utf8');
-    const tags=markup.match(/<meta\b[^>]*>/gi)??[];
-    const meta=name=>{
-      const tag=tags.find(tag=>new RegExp('(?:property|name)=["\']'+name+'["\']','i').test(tag));
-      return tag?.match(/content=["']([^"']+)["']/i)?.[1]??'';
-    };
-    const normalize=value=>value.toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
-    const title=' '+normalize(meta('og:title')+' '+meta('og:description'))+' ';
-    if(!title.includes(' '+normalize(input.style)+' ') || !title.includes(' '+normalize(input.color)+' '))return null;
-    link=photoURL(meta('og:image').replaceAll('&amp;','&'));
+    const {fabric}=product.retailer.parse(product.url,colors);
+    link=listingPhoto(markup,product.retailer,{style:input.style,color:input.color,fabric});
   }
   if(!link)return null;
   const response=await fetch(link,{redirect:'error',signal:AbortSignal.timeout(8000)});
@@ -140,6 +138,7 @@ export async function handle(request) {
         if(!variant)return json({error:'Paste a link for this style and fabric in the new color.'},400);
         const links=option.colorLinks??[];
         if(links.some(item=>item.color===variant.color && item.url===variant.url))return json(current);
+        if(links.length>=colorLinkLimit(option) && !links.some(item=>item.color===variant.color))return json({error:'This dress has reached its color limit.'},400);
         option.colorLinks=[...links.filter(item=>item.color!==variant.color),{color:variant.color,url:variant.url}];
         const result=await store.write(id,current.version,JSON.stringify(current.state),current.savedAt);
         if(result)return json(result);

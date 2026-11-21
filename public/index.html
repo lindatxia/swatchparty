@@ -91,8 +91,9 @@
           <select id="dress-color" name="color" required></select>
         </div>
       </div>
-      <label>Azazie URL <input name="url" autofocus type="url" required placeholder="https://www.azazie.com/products/…"></label>
-      <a id="dress-retailer" target="_blank" rel="noopener noreferrer" hidden>View on Azazie</a>
+      <label>Dress URL <input name="url" autofocus type="url" required placeholder="Paste an Azazie or Birdy Grey dress link"></label>
+      <label>Transparent cutout (optional) <input name="cutout" type="file" accept="image/png,image/webp"></label>
+      <a id="dress-retailer" target="_blank" rel="noopener noreferrer" hidden>View product</a>
       <p id="dress-message" role="status"></p>
       <div class="actions"><button id="cancel-dress" type="button">Cancel</button><button type="submit">Save dress</button></div>
     </form>
@@ -100,7 +101,7 @@
   <dialog id="color-dialog" aria-labelledby="color-heading">
     <form id="color-form">
       <h2 id="color-heading">Add a color</h2>
-      <label>Azazie link for the new color <input name="url" type="url" required maxlength="1200" placeholder="https://www.azazie.com/products/…"></label>
+      <label>Dress link for the new color <input name="url" type="url" required maxlength="1200" placeholder="Paste a link to the same dress in another color"></label>
       <p id="color-message" role="status"></p>
       <div class="actions">
         <button id="cancel-color" type="button">Cancel</button>

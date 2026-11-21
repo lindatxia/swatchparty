@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {catalog,dressColorLink,exactPreview,readProduct,initialWorkspace} from '../public/catalog.js';
+import {catalog,dressColorLink,exactPreview,readProduct,initialWorkspace,swatchColor} from '../public/catalog.js';
+import {listingPhoto,retailerProduct} from '../public/retailers.js';
 import {handle,validState} from '../server/handler.js';
 
 const key='local-integration-test-workspace-key';
@@ -120,3 +121,66 @@ test('the database keeps independent saved selections for each preset palette',a
   state.paletteDrafts['Garden Mix']=mauve;
   assert.equal((await request('PUT',{version:stored.version,state})).status,400);
 });
+
+const birdy=(shade,fabric='chiffon')=>'https://www.birdygrey.com/products/violet-'+fabric+'-dress-'+shade;
+
+test('isolates Birdy Grey styles by retailer and fabric and parses shade-specific listings',()=>{
+  const mauve=birdy('dark-mauve');
+  const info=readProduct(mauve);
+  assert.equal(info.retailer,'birdy-grey');
+  assert.equal(info.style,'Violet');
+  assert.equal(info.fabric,'Chiffon');
+  assert.equal(info.color,'Dark Mauve');
+  assert.equal(readProduct(birdy('dark-mauve','stretch-satin')).fabric,'Stretch Satin');
+  assert.equal(dressColorLink(info,birdy('olive')).color,'Olive');
+  assert.equal(dressColorLink(info,birdy('olive','satin')),null);
+  assert.equal(dressColorLink(info,catalog[0].url),null);
+  assert.equal(readProduct(mauve.replace('birdygrey.com','birdygrey.com.example')),null);
+  assert.equal(readProduct('https://www.birdygrey.com/products/swatch-chiffon-in-dusty-rose'),null);
+  assert.notEqual(swatchColor(info,'Dusty Rose'),swatchColor(catalog[0],'Dusty Rose'));
+});
+
+test('verifies the photo metadata and retailer image origin',()=>{
+  const reference=birdy('dark-mauve');
+  const {retailer}=retailerProduct(reference);
+  const photo='https://cdn.shopify.com/s/files/1/2053/3799/files/violet.webp';
+  const markup=image=>'<meta property="og:title" content="Dark Mauve Violet Chiffon Bridesmaid Dress">'+
+    '<meta property="og:image" content="'+image+'">';
+  assert.equal(listingPhoto(markup(photo),retailer,readProduct(reference)).href,photo);
+  assert.equal(listingPhoto(markup(photo.replace('/2053/', '/2054/')),retailer,readProduct(reference)),null);
+  assert.equal(listingPhoto(markup(photo),retailer,readProduct(birdy('olive'))),null);
+});
+
+test('stores a Birdy Grey cutout by exact shade in a mixed lineup and saved snapshot',async()=>{
+  const before=await (await request()).json();
+  const state=structuredClone(before.state);
+  const url=birdy('dark-mauve');
+  const olive=birdy('olive');
+  const bytes=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=','base64');
+  const uploaded=await handle(new Request('http://localhost/api/workspace?upload',{
+    method:'POST',headers:{'x-workspace-key':key},body:bytes
+  }));
+  assert.equal(uploaded.status,201);
+  const {photo}=await uploaded.json();
+  const option={id:'birdy-violet',person:0,style:'Violet',color:'Dark Mauve',size:'',url,urlColor:'Dark Mauve',
+    sourceColor:'',photo:'',colorLinks:[{color:'Olive',url:olive}],cutouts:[{color:'Dark Mauve',url,photo}]};
+  state.options.push(option);
+  state.draft.looks[0]={option:option.id,color:option.color};
+  state.saved.push({id:'mixed-lineup',name:'Mixed lineup',options:[option,catalogOption(state)],draft:{
+    ...state.draft,looks:state.draft.looks.map((look,index)=>index<=1?look:null)
+  }});
+  assert.equal((await request('PUT',{version:before.version,state})).status,200);
+  const stored=(await (await request()).json()).state;
+  const live=stored.options.find(item=>item.id===option.id);
+  assert.deepEqual(exactPreview(live,'Dark Mauve'),{photo,link:url});
+  assert.deepEqual(exactPreview(live,'Olive'),{photo:'',link:olive});
+  assert.equal(exactPreview(stored.saved.at(-1).options[0],'Dark Mauve').photo,photo);
+  const asset=await request('GET',undefined,'?asset='+photo.slice(6));
+  assert.deepEqual(Buffer.from(await asset.arrayBuffer()),bytes);
+  live.cutouts[0].url=birdy('dark-mauve','satin');
+  assert.equal(validState(stored),false);
+});
+
+function catalogOption(state) {
+  return state.options.find(item=>item.id===state.draft.looks[1].option);
+}

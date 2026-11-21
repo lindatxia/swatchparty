@@ -1,3 +1,5 @@
+import {retailerProduct} from './retailers.js';
+
 export const people = ['Etreta','Hanna','Jackie','Michelle','Nicole'];
 export const colors = {
   'Sea Moss':'#839277','Dusty Sage':'#a2a88d',Juniper:'#536c54',Olive:'#667343',
@@ -37,42 +39,46 @@ export const catalog = [
   {"style":"Palerma","color":"Sangria","variantGroup":"palerma-a-line-long-sleeve-chiffon-floor-length-bridesmaid-dress","url":"https://www.azazie.com/products/azazie-palerma-sangria-a-line-long-sleeve-chiffon-floor-length-bridesmaid-dress/72234883","photo":"/palerma-sangria-72234883.jpg","previousProductId":"72234835"},
   {"style":"Kimber","color":"Ganache","variantGroup":"kimber-a-line-flounce-sleeve-chiffon-floor-length-bridesmaid-dress","url":"https://www.azazie.com/products/azazie-kimber-ganache-a-line-flounce-sleeve-chiffon-floor-length-bridesmaid-dress/89642455","photo":"/kimber-ganache-89642455.jpg","previousProductId":"220867"}
 ];
-export function productURL(input) {
-  try {
-    const parsed = new URL(input);
-    if (parsed.protocol==='https:' && ['azazie.com','www.azazie.com'].includes(parsed.hostname) &&
-        !parsed.username && !parsed.password && !parsed.port &&
-        /^\/products\/[\w-]+(?:\/\d+)?\/?$/.test(parsed.pathname)) return parsed;
-  } catch {}
-  return null;
+export function retailerName(option) {
+  return retailerProduct(option?.url)?.retailer.name??'';
 }
-const slug = name => name.toLowerCase().trim().replace(/[\s_]+/g,'-');
+export function swatchColor(option,color) {
+  const retailer=retailerProduct(option?.url)?.retailer;
+  return retailer?.swatch?.(color)??colors[color];
+}
 export function readProduct(input) {
-  const parsed=productURL(input);
-  if(!parsed)return null;
-  const [, , path, id]=parsed.pathname.split('/');
-  const query=parsed.searchParams.get('color');
-  const size=parsed.searchParams.get('size')?.toUpperCase() ?? '';
-  const prefix=path.replace(/^azazie-/,'').split(/-(?:a-line|mermaid|sheath|ball-gown|trumpet|bridesmaid-dress|maxi-dress|midi-dress|mini-dress)(?:-|$)/)[0];
-  const pathColor=Object.keys(colors).sort((a,b)=>b.length-a.length).find(name=>prefix.endsWith('-'+slug(name)));
-  const color=query ? Object.keys(colors).find(name=>slug(name)===slug(query)) : pathColor;
-  const match=catalog.find(item=>id && new URL(item.url).pathname.split('/').at(-1)===id && item.color===color);
-  const stylePrefix=pathColor?prefix.slice(0,-slug(pathColor).length-1):prefix;
-  const styleKey=pathColor?stylePrefix+path.replace(/^azazie-/,'').slice(prefix.length):'';
-  const style=match?.style ?? stylePrefix.split('-').filter(Boolean).map(word=>word[0].toUpperCase()+word.slice(1)).join(' ');
-  return {style,styleKey,color:color??'',size,photo:match?.photo??'',sourceColor:match?.sourceColor??color??'',url:parsed.href};
+  const product=retailerProduct(input);
+  if(!product)return null;
+  const {retailer,url}=product;
+  const parsed=retailer.parse(url,colors);
+  const {style,styleKey,color,size,fabric}=parsed;
+  const key=retailer.catalogKey(url,parsed);
+  const match=catalog.find(item=>{
+    if(!key || item.color!==color)return false;
+    const listing=retailerProduct(item.url);
+    return listing?.retailer===retailer && retailer.catalogKey(listing.url,retailer.parse(listing.url,colors))===key;
+  });
+  return {retailer:retailer.id,styleKey:styleKey?retailer.id+':'+styleKey:'',
+    style:match?.style??style,color,size,...(fabric?{fabric}:{}),
+    photo:match?.photo??'',sourceColor:match?.sourceColor??color,url:url.href};
 }
 export function verifiedVariants(option) {
-  if(!option)return [];
-  const product=productURL(option.url);
-  const base=catalog.find(item=>{
+  const product=retailerProduct(option?.url);
+  if(!product)return [];
+  const {retailer,url}=product;
+  const matching=catalog.filter(item=>retailerProduct(item.url)?.retailer===retailer);
+  if(!retailer.legacyCatalogGroups) {
+    const {styleKey}=retailer.parse(url,colors);
+    return matching.filter(item=>item.photo && retailer.parse(new URL(item.url),colors).styleKey===styleKey);
+  }
+  const base=matching.find(item=>{
     if(item.style!==option.style)return false;
     const path=new URL(item.url).pathname;
-    return path===product?.pathname || item.previousProductId &&
-      path.replace(/\/\d+$/,'/'+item.previousProductId)===product?.pathname;
+    return path===url.pathname || item.previousProductId &&
+      path.replace(/\/\d+$/,'/'+item.previousProductId)===url.pathname;
   });
   if(!base)return [];
-  return catalog.filter(item=>item.photo && item.style===base.style &&
+  return matching.filter(item=>item.photo && item.style===base.style &&
     (item===base || base.variantGroup && item.variantGroup===base.variantGroup));
 }
 export function dressColorLink(option,input) {
@@ -84,15 +90,13 @@ export function dressColorLink(option,input) {
 }
 export function exactPreview(option,color) {
   const exact=verifiedVariants(option).find(item=>item.color===color);
-  const listing=exact && exact.usListing!==false ? new URL(exact.url) : null;
-  if(listing){
-    listing.searchParams.set('country','US');
-    listing.searchParams.set('currency','USD');
-    listing.searchParams.set('campaigncountry','US_EN');
-  }
+  const cutout=option?.cutouts?.find(item=>item.color===color);
+  const linked=option?.colorLinks?.find(item=>item.color===color);
+  const fallback=cutout??linked??(option?.urlColor===color?option:null);
+  const product=retailerProduct(exact?.usListing===false?'':exact?.url??fallback?.url);
   return {
-    photo:exact ? exact.photo.replace('.jpg','-cutout.webp') : '',
-    link:listing?.href??''
+    photo:cutout?.photo??(exact?exact.cutout??exact.photo.replace('.jpg','-cutout.webp'):''),
+    link:product?.retailer.listing(product.url).href??''
   };
 }
 export function initialWorkspace() {

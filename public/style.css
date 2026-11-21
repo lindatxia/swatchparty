@@ -83,6 +83,7 @@ a, .text-button{color:var(--ink);text-decoration:underline;text-underline-offset
 .option.reordering{opacity:.5}
 .option.reorder-target{outline:2px dashed #89566f;outline-offset:1px}
 .option-details{display:grid;min-width:0;gap:1px}
+.retailer-name{font-size:.8rem;color:var(--muted)}
 .option-head .pick{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .dress-link{position:relative;z-index:1;justify-self:start;max-width:100%;text-decoration:none}
 .dress-link:is(:hover,:focus-visible){color:#89566f;text-decoration:underline}

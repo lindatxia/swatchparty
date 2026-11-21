@@ -1,4 +1,5 @@
-import {catalog,colors,palettes,people,readProduct,exactPreview,verifiedVariants,dressColorLink,initialWorkspace} from './catalog.js';
+import {catalog,colors,palettes,people,readProduct,exactPreview,verifiedVariants,dressColorLink,initialWorkspace,retailerName,swatchColor} from './catalog.js';
+import {retailerNames} from './retailers.js';
 import {downloadPDF} from './export.js';
 
 const get=id=>document.getElementById(id);
@@ -164,7 +165,7 @@ function card(person,index,draft,options) {
   const pendingPreview=option && !preview.photo && linkedColors(option,options).some(link=>link.color===look.color);
   const label=preview.photo
     ? '<img data-photo="'+html(preview.photo)+'" alt="'+html(option.style+' in '+look.color)+'">'
-    : pendingPreview?'<span class="missing" data-pending-preview>Azazie photo pending</span>':
+    : pendingPreview?'<span class="missing" data-pending-preview>Exact cutout pending</span>':
       '<span class="missing">'+(option?'Exact photo unavailable':'No dress selected')+'</span>';
   const liveOptions=state.options.filter(item=>item.person===index);
   const grouped=new Map();
@@ -184,12 +185,14 @@ function card(person,index,draft,options) {
     const select=!savedOnly && available.size;
     const {link}=exactPreview(display,shade);
     const name=link?'<a class="pick dress-link" href="'+html(link)+'" target="_blank" rel="noopener noreferrer" aria-label="'+
-      html(display.style+' in '+shade+' on Azazie')+'">'+html(display.style)+'</a>':
+      html(display.style+' in '+shade+' on '+retailerName(display))+'">'+html(display.style)+'</a>':
       '<span class="pick">'+html(display.style)+'</span>';
-    const shadeLabel=available.has(shade)?'<span class="option-shade"><i class="selected-color" style="--swatch:'+colors[shade]+'"></i>'+
+    const shadeLabel=available.has(shade)?'<span class="option-shade"><i class="selected-color" style="--swatch:'+swatchColor(display,shade)+'"></i>'+
       '<span class="shade-name" title="'+html(shade)+'">'+html(shade)+'</span></span>':
       '<span class="option-shade"><span class="shade-name">'+(available.size?'Choose a color':'Exact photo not added')+'</span></span>';
-    const details='<div class="option-details">'+name+
+    const retailer=retailerName(display);
+    const brand=retailer&&retailer!=='Azazie'?'<span class="retailer-name">'+html(retailer)+'</span>':'';
+    const details='<div class="option-details">'+name+brand+
       (select?'<button type="button" class="option-select" id="pick-'+item.id+'" data-pick="'+item.id+
         '" aria-label="'+html('Select '+display.style+(available.has(shade)?' in '+shade:''))+'" aria-pressed="'+chosen+'">'+shadeLabel+'</button>':shadeLabel)+
       '</div>';
@@ -202,9 +205,9 @@ function card(person,index,draft,options) {
     return '<div class="option"'+(handle?' data-reorder="'+item.id+'"':'')+' aria-current="'+chosen+'"><div class="option-head">'+
       details+'<div class="option-actions">'+handle+edit+'</div></div>'+
       (shades.length?'<div class="swatches">'+shades.map(shade=>
-        '<button class="swatch" style="--swatch:'+colors[shade]+'" title="'+html(shade)+'" aria-label="'+html(item.style+' in '+shade)+
+        '<button class="swatch" style="--swatch:'+swatchColor(display,shade)+'" title="'+html(shade)+'" aria-label="'+html(item.style+' in '+shade)+
         '" aria-pressed="'+(chosen&&look.color===shade)+'" data-pick="'+item.id+'" data-color="'+html(shade)+
-        '" id="sw-'+item.id+'-'+Object.keys(colors).indexOf(shade)+'"'+(savedOnly?' disabled':'')+'></button>').join('')+
+        '" id="sw-'+item.id+'-'+encodeURIComponent(shade)+'"'+(savedOnly?' disabled':'')+'></button>').join('')+
       '</div>':'<p class="pending-photo">No verified colors yet</p>')+
       '</div>';
   }).join('');
@@ -528,12 +531,17 @@ const fields=form.elements;
 const addColorValue='__add_color__';
 function updateDressRetailer(){
   const link=get('dress-retailer');
-  const {link:href}=exactPreview(readProduct(fields.url.value.trim()),fields.color.value);
+  const info=readProduct(fields.url.value.trim());
+  const option=state.options.find(item=>item.id===dressId);
+  const sameStyle=info?.styleKey && info.styleKey===readProduct(option?.url)?.styleKey;
+  const {link:href}=exactPreview(info&&{...info,urlColor:info.color,
+    colorLinks:sameStyle?linkedColors(option,state.options):[]},fields.color.value);
   link.hidden=!href;
-  if(href)link.href=href;
+  if(href){link.href=href;link.textContent='View on '+retailerName(info);}
   else link.removeAttribute('href');
 }
 fields.color.addEventListener('change',()=>{
+  fields.cutout.value='';
   if(fields.color.value!==addColorValue){
     fields.color.dataset.previous=fields.color.value;
     updateDressRetailer();
@@ -548,7 +556,7 @@ function showDressColors(info,preferred) {
   const known=variants.map(item=>item.color);
   const current=state.options.find(item=>item.id===dressId);
   const added=current && info?.styleKey===readProduct(current.url)?.styleKey?linkedColors(current,state.options):[];
-  const allowed=[...new Set([...(known.length?known:info?.color?[info.color]:[]),...added.map(link=>link.color)])];
+  const allowed=[...new Set([...known,...(info?.color?[info.color]:[]),...added.map(link=>link.color)])];
   const selected=allowed.includes(preferred)?preferred:allowed[0]??'';
   const actions=dressId?[[addColorValue,'Add another color…']]:[];
   fields.color.innerHTML=selectOptions([['','Select a color'],...allowed.map(shade=>[shade,shade]),...actions],selected);
@@ -596,11 +604,38 @@ function openDress(person,option) {
   get('dress-dialog').showModal();
 }
 fields.url.addEventListener('input',()=>{
+  fields.cutout.value='';
   const info=readProduct(fields.url.value.trim());
   showDressColors(info,info?.color);
   if(!info)return;
   if(info.style)fields.style.value=info.style;
 });
+async function uploadDressCutout(file) {
+  if(!['image/png','image/webp'].includes(file.type) || file.size>3_000_000){
+    throw new Error('Choose a transparent PNG or WebP up to 3 MB.');
+  }
+  const url=URL.createObjectURL(file);
+  try {
+    const image=new Image();
+    image.src=url;
+    await image.decode();
+    const canvas=document.createElement('canvas');
+    canvas.width=Math.min(256,image.naturalWidth);
+    canvas.height=Math.min(256,image.naturalHeight);
+    const context=canvas.getContext('2d',{willReadFrequently:true});
+    context.drawImage(image,0,0,canvas.width,canvas.height);
+    const {data}=context.getImageData(0,0,canvas.width,canvas.height);
+    let transparent=false, visible=false;
+    for(let index=3;index<data.length;index+=4){
+      transparent ||= data[index]===0;
+      visible ||= data[index]>=128;
+      if(transparent && visible)break;
+    }
+    if(!transparent || !visible)throw new Error('Choose a dress cutout with a transparent background.');
+    const {photo}=await (await request('?upload',{method:'POST',body:file})).json();
+    return photo;
+  } finally {URL.revokeObjectURL(url);}
+}
 get('cancel-dress').onclick=()=>get('dress-dialog').close();
 async function uploadBackdrop(file) {
   const imageTypes=['image/jpeg','image/png','image/webp'];
@@ -636,36 +671,50 @@ async function uploadBackdrop(file) {
 form.onsubmit=async event=>{
   event.preventDefault();
   const info=readProduct(fields.url.value.trim());
-  if(!info){get('dress-message').textContent='Enter an Azazie dress product URL.';return;}
-  if(!fields.style.value.trim()){get('dress-message').textContent='Enter a style name.';return;}
+  const message=get('dress-message');
+  if(!info){message.textContent='Enter a '+retailerNames+' dress product URL.';return;}
+  const style=fields.style.value.trim();
+  if(!style){message.textContent='Enter a style name.';return;}
   const old=state.options.find(item=>item.id===dressId);
   const person=dressPerson,id=dressId??crypto.randomUUID();
   const color=fields.color.value;
-  const variant=verifiedVariants({style:fields.style.value.trim(),url:info.url}).find(item=>item.color===color);
-  const photo=variant?.photo??'';
+  const variant=verifiedVariants({style,url:info.url}).find(item=>item.color===color);
+  const oldLinks=old?linkedColors(old,state.options):[];
+  const shadeURL=variant?.url??(info.color===color?info.url:
+    oldLinks.find(item=>item.color===color && dressColorLink(info,item.url))?.url);
+  if(!shadeURL){message.textContent='Choose a color for this exact dress.';return;}
+  const cutoutFile=fields.cutout.files[0];
   const submit=form.querySelector('[type=submit]');
   submit.disabled=true;
-  get('dress-message').textContent='Preparing the dress…';
+  message.textContent='Preparing the dress…';
   try {
-    const option={id,person,style:fields.style.value.trim(),size:old?.size??'',color,lastColor:color,
-      url:variant?.url??info.url,urlColor:variant?.color||info.color||color,photo,sourceColor:variant?.color??'',
-      colorLinks:[...new Map((old?linkedColors(old,state.options):[]).filter(item=>
-        dressColorLink({url:variant?.url??info.url},item.url)).map(item=>[item.color,item])).values()]};
+    const uploaded=cutoutFile?{color,url:shadeURL,photo:await uploadDressCutout(cutoutFile)}:null;
+    const option={id,person,style,size:old?.size??'',color,lastColor:color,
+      url:shadeURL,urlColor:color,photo:variant?.photo??'',sourceColor:variant?.color??''};
+    const baseLink=dressColorLink(option,info.url);
+    const compatible=items=>items.filter(item=>dressColorLink(option,item.url)?.color===item.color);
+    const mergeByColor=items=>[...new Map(compatible(items).map(item=>[item.color,item])).values()];
+    const oldProduct=old&&readProduct(old.url);
+    const currentLink={color,url:shadeURL};
     change(target=>{
       const existing=target.options.find(item=>item.id===id);
-      if(existing){
-        const links=[...option.colorLinks,...(existing.colorLinks??[])].filter(item=>dressColorLink(option,item.url));
-        const updated={...option,colorLinks:[...new Map(links.map(item=>[item.color,item])).values()]};
-        target.options=target.options.map(item=>item.id===id?updated:item);
-      } else target.options.push(option);
-      if((variant||option.colorLinks.some(item=>item.color===color)) && (!old || target.draft.looks[person]?.option===id))target.draft.looks[person]={option:id,color};
+      const colorLinks=mergeByColor([
+        ...(oldProduct?.color?[{color:oldProduct.color,url:old.url}]:[]),
+        ...oldLinks,...(existing?.colorLinks??[]),
+        ...(baseLink?[{color:baseLink.color,url:baseLink.url}]:[]),currentLink
+      ]);
+      const cutouts=mergeByColor([...(existing?.cutouts??[]),...(uploaded?[uploaded]:[])]);
+      const updated={...option,colorLinks,...(cutouts.length?{cutouts}:{})};
+      if(existing)target.options=target.options.map(item=>item.id===id?updated:item);
+      else target.options.push(updated);
+      if(!old || target.draft.looks[person]?.option===id)target.draft.looks[person]={option:id,color};
     });
     viewed=null;
     render();
     get('dress-dialog').close();
-    showToast(variant?'Dress updated.':'Dress updated. Exact Azazie photo still needed.');
+    showToast(variant||uploaded?'Dress updated.':'Dress updated. You can add a cutout anytime.');
   } catch(error) {
-    get('dress-message').textContent=error.message+' You can clear the photo field and save the dress.';
+    message.textContent=error.message;
   } finally {submit.disabled=false;}
 };
 get('randomize-order').onclick=()=>{
